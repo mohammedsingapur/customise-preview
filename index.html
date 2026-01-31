@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hakimi Preview Tool</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+    <style>
+        /* BASE STYLES */
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; margin: 0; overflow-x: hidden; }
+        
+        /* LOGIN MODAL (Overlay) */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .login-box {
+            background: white; padding: 30px; border-radius: 12px; width: 300px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .login-box h2 { margin-top: 0; color: #333; }
+        .login-box input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; }
+        .login-box button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .error-msg { color: red; font-size: 13px; margin-top: 10px; display: none; }
+
+        /* APP UI (Hidden by default) */
+        #appContainer { display: none; padding: 10px; }
+        
+        /* HEADER BAR */
+        .header-bar {
+            background: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .credits-badge { background: #e7f1ff; color: #007bff; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; }
+        .logout-btn { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px;}
+
+        /* TOOL STYLES */
+        .preview-area { background: #ddd; padding: 20px; text-align: center; overflow: auto; border-radius: 8px; margin-bottom: 20px;}
+        canvas { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-width: 100%; height: auto; }
+        
+        .controls { background: white; padding: 20px; border-radius: 12px; }
+        .row { display: flex; gap: 10px; margin-bottom: 15px; }
+        .col { flex: 1; }
+        label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .download-btn { width: 100%; background: #28a745; color: white; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2>🔐 Hakimi Tools</h2>
+            <p>Please login to access</p>
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="handleLogin()">Login</button>
+            <p id="loginError" class="error-msg"></p>
+        </div>
+    </div>
+
+    <div id="appContainer">
+        
+        <div class="header-bar">
+            <strong>Hakimi Preview Maker 2.0</strong>
+            <div>
+                <span id="creditDisplay" class="credits-badge">Loading...</span>
+                <button class="logout-btn" onclick="logout()">Exit</button>
+            </div>
+        </div>
+
+        <div class="preview-area">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
+        <div class="controls">
+            <button class="download-btn" onclick="handlePaidDownload()">⬇️ Download Image (1 Credit)</button>
+            <br><br>
+
+            <div class="row">
+                <div class="col"><label>Upload Image</label><input type="file" id="imgUpload" accept="image/*"></div>
+                <div class="col"><label>Ext. Color</label><input type="color" id="extColor" value="#ffffff" style="height:40px;" oninput="draw()"></div>
+            </div>
+
+            <div class="row" style="background:#f0f7ff; padding:10px; border-radius:6px; border:1px solid #cce5ff;">
+                <div class="col"><label>Split Widths (Cols)</label><input type="text" id="splitW" placeholder="55, 55" oninput="draw()"></div>
+                <div class="col"><label>Split Heights (Rows)</label><input type="text" id="splitH" placeholder="30, 30" oninput="draw()"></div>
+            </div>
+
+            <div class="row">
+                <div class="col"><label>Total Width</label><input type="number" id="inpTotalW" value="100" oninput="draw()"></div>
+                <div class="col"><label>Total Height</label><input type="number" id="inpTotalH" value="90" oninput="draw()"></div>
+            </div>
+
+            <div class="row">
+                <div class="col"><label>Shape</label>
+                    <select id="shapeType" onchange="draw()">
+                        <option value="rect">Rectangle</option>
+                        <option value="arch-top">Arch (Top)</option>
+                        <option value="arch-bottom">Arch (Bottom)</option>
+                        <option value="circle">Circle</option>
+                    </select>
+                </div>
+                <div class="col"><label>Gap (inch)</label><input type="number" id="inpGap" value="2" oninput="draw()"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. FIREBASE CONFIGURATION (PASTE KEYS HERE) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+            authDomain: "customise-previews.firebaseapp.com",
+            projectId: "customise-previews",
+            storageBucket: "customise-previews.firebasestorage.app",
+            messagingSenderId: "1073406972228",
+            appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        let currentUserData = null;
+
+        // --- 2. SECURITY: ONE DEVICE GUARD ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // User Logged In
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'block';
+                
+                // Start Session Guard
+                startSessionMonitor(user.uid);
+                // Start Credit Monitor
+                startCreditMonitor(user.uid);
+            } else {
+                // User Logged Out
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('appContainer').style.display = 'none';
+            }
+        });
+
+        function handleLogin() {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('password').value;
+            auth.signInWithEmailAndPassword(e, p).then((u) => {
+                // Set Session ID
+                const sessId = Date.now().toString();
+                localStorage.setItem('hk_sess', sessId);
+                db.collection('users').doc(u.user.uid).set({ active_sess: sessId }, { merge: true });
+            }).catch(err => {
+                document.getElementById('loginError').style.display = 'block';
+                document.getElementById('loginError').innerText = err.message;
+            });
+        }
+
+        function startSessionMonitor(uid) {
+            db.collection('users').doc(uid).onSnapshot(doc => {
+                if(doc.exists) {
+                    const serverSess = doc.data().active_sess;
+                    const localSess = localStorage.getItem('hk_sess');
+                    if(serverSess && serverSess !== localSess) {
+                        alert("⚠️ Security Alert\nYou have logged in on another device.\nLogging out from here.");
+                        auth.signOut();
+                    }
+                }
+            });
+        }
+
+        function startCreditMonitor(uid) {
+            db.collection('users').doc(uid).onSnapshot(doc => {
+                if(doc.exists) {
+                    currentUserData = doc.data();
+                    const creds = currentUserData.credits || 0;
+                    document.getElementById('creditDisplay').innerText = creds + " Credits";
+                    // Color change if low
+                    document.getElementById('creditDisplay').style.color = creds < 5 ? 'red' : '#007bff';
+                }
+            });
+        }
+
+        async function handlePaidDownload() {
+            const user = auth.currentUser;
+            if(!user) return;
+            
+            // Check credits locally first
+            if(!currentUserData || currentUserData.credits < 1) {
+                return alert("❌ Insufficient Credits!\nContact Admin to recharge.");
+            }
+
+            try {
+                await db.runTransaction(async (t) => {
+                    const ref = db.collection('users').doc(user.uid);
+                    const doc = await t.get(ref);
+                    const newCreds = (doc.data().credits || 0) - 1;
+                    if(newCreds < 0) throw "NO_FUNDS";
+                    t.update(ref, { credits: newCreds });
+                });
+                
+                // If success, download
+                downloadCanvas();
+            } catch(e) {
+                alert("Transaction Failed: " + e);
+            }
+        }
+
+        function logout() { auth.signOut(); }
+
+        // --- 3. THE TOOL LOGIC (v2.0) ---
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        let uploadedImg = null;
+
+        document.getElementById('imgUpload').addEventListener('change', (e) => {
+            if (!e.target.files[0]) return;
+            const r = new FileReader();
+            r.onload = (evt) => {
+                const img = new Image();
+                img.onload = () => { 
+                    uploadedImg = img; 
+                    // Auto Color
+                    const c = document.createElement('canvas'); c.width=1; c.height=1;
+                    c.getContext('2d').drawImage(img,0,0,1,1);
+                    const p = c.getContext('2d').getImageData(0,0,1,1).data;
+                    const hex = "#" + ((1 << 24) + (p[0] << 16) + (p[1] << 8) + p[2]).toString(16).slice(1);
+                    document.getElementById('extColor').value = hex;
+                    draw(); 
+                };
+                img.src = evt.target.result;
+            };
+            r.readAsDataURL(e.target.files[0]);
+        });
+
+        function draw() {
+            // Logic stripped for brevity - Paste v10.0 draw() function logic here
+            // Or use the simplified version below for testing:
+            
+            const totalW = parseFloat(document.getElementById('inpTotalW').value) || 100;
+            const totalH = parseFloat(document.getElementById('inpTotalH').value) || 100;
+            const gap = parseFloat(document.getElementById('inpGap').value) || 2;
+            const extColor = document.getElementById('extColor').value;
+            
+            // Grid Parsing
+            const sW = document.getElementById('splitW').value.split(',').map(n=>parseFloat(n)).filter(n=>n>0);
+            const sH = document.getElementById('splitH').value.split(',').map(n=>parseFloat(n)).filter(n=>n>0);
+            const cols = sW.length ? sW : [totalW];
+            const rows = sH.length ? sH : [totalH];
+            
+            // Canvas Setup
+            const PPI = 5; // Low res for preview speed
+            const gridW = cols.reduce((a,b)=>a+b,0);
+            const gridH = rows.reduce((a,b)=>a+b,0);
+            canvas.width = (gridW * PPI) + (cols.length*gap*PPI) + 50;
+            canvas.height = (gridH * PPI) + (rows.length*gap*PPI) + 50;
+            
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            
+            let curY = 25;
+            rows.forEach(h => {
+                let curX = 25;
+                cols.forEach(w => {
+                    // Draw Tile
+                    ctx.fillStyle = extColor;
+                    ctx.fillRect(curX, curY, w*PPI, h*PPI);
+                    
+                    if(uploadedImg) {
+                        ctx.save();
+                        ctx.beginPath(); ctx.rect(curX, curY, w*PPI, h*PPI); ctx.clip();
+                        ctx.drawImage(uploadedImg, curX, curY, totalW*PPI, totalH*PPI); // Simplified stretch
+                        ctx.restore();
+                    }
+                    
+                    ctx.strokeStyle="#333"; ctx.strokeRect(curX, curY, w*PPI, h*PPI);
+                    curX += (w*PPI) + (gap*PPI);
+                });
+                curY += (h*PPI) + (gap*PPI);
+            });
+        }
+
+        function downloadCanvas() {
+            const link = document.createElement('a');
+            link.download = 'hakimi-proof.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // --- 4. ANTI-THEFT (BASIC) ---
+        document.addEventListener('contextmenu', e => e.preventDefault()); // No Right Click
+    </script>
+</body>
+</html>

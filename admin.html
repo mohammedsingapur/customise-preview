@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <style>body { padding: 40px; font-family: sans-serif; background: #333; color: white; } input, button { padding: 10px; margin: 5px; width: 300px; display: block; }</style>
+</head>
+<body>
+    <h1>👑 Admin Recharge</h1>
+    
+    <div id="login">
+        <input id="ae" placeholder="Admin Email"><input id="ap" type="password" placeholder="Pass">
+        <button onclick="aLogin()">Login</button>
+    </div>
+
+    <div id="panel" style="display:none">
+        <h3>Add Credits</h3>
+        <input id="ue" placeholder="User Email">
+        <input id="amt" type="number" placeholder="Amount (e.g. 100)">
+        <button onclick="recharge()" style="background:#28a745; color: white; font-weight:bold;">CONFIRM RECHARGE</button>
+    </div>
+
+    <script>
+        // PASTE SAME FIREBASE CONFIG HERE
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+            authDomain: "customise-previews.firebaseapp.com",
+            projectId: "customise-previews"
+        };
+        firebase.initializeApp(firebaseConfig);
+        
+        function aLogin() {
+            firebase.auth().signInWithEmailAndPassword(document.getElementById('ae').value, document.getElementById('ap').value)
+            .then(() => { document.getElementById('login').style.display='none'; document.getElementById('panel').style.display='block'; })
+            .catch(e => alert(e.message));
+        }
+
+        async function recharge() {
+            const email = document.getElementById('ue').value;
+            const amt = parseInt(document.getElementById('amt').value);
+            const snap = await firebase.firestore().collection('users').where('email','==',email).get();
+            if(snap.empty) return alert("User not found");
+            const doc = snap.docs[0];
+            const newCreds = (doc.data().credits || 0) + amt;
+            await firebase.firestore().collection('users').doc(doc.id).update({ credits: newCreds });
+            alert("Success! New Balance: " + newCreds);
+        }
+    </script>
+</body>
+</html>
