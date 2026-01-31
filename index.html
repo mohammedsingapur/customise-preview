@@ -167,10 +167,17 @@
         // --- 2. AUTHENTICATION LOGIC ---
         
         function googleLogin() {
-            auth.signInWithPopup(provider).catch(e => {
-                document.getElementById('loginMsg').innerText = e.message;
-            });
-        }
+    // 1. Use REDIRECT (Better for phones)
+    auth.signInWithRedirect(provider);
+}
+
+// 2. Check for errors when the page reloads after redirect
+auth.getRedirectResult().catch((error) => {
+    // This will pop up the exact error on your phone screen
+    alert("Login Error: " + error.message);
+    document.getElementById('loginMsg').innerText = error.message;
+});
+
 
         auth.onAuthStateChanged(user => {
             if (user) {
