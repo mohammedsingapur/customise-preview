@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hakimi Preview Maker v3.0</title>
+    <title>Hakimi Preview v4.0</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -11,148 +11,137 @@
 
     <style>
         /* CSS STYLES */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding-bottom: 50px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 60px; }
         
-        /* 1. LOGIN OVERLAY (Visible by default) */
-        #loginOverlay {
+        /* OVERLAYS */
+        .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 10000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.9); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white;
         }
-        .login-box {
-            background: white; padding: 40px; border-radius: 15px; width: 300px; text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .google-btn {
-            background: #4285F4; color: white; width: 100%; padding: 12px; border: none; margin-top: 20px;
-            border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer;
-        }
-        .google-btn:hover { background: #357ae8; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; width: 85%; max-width: 320px; color: #333; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* 2. APP CONTAINER (Hidden by default) */
-        #appContainer { display: none; max-width: 1200px; margin: 0 auto; padding: 15px; }
+        /* BUTTONS */
+        .btn-google { background: #4285F4; color: white; width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin-top: 20px; cursor: pointer; }
+        .btn-download { width: 100%; padding: 15px; background: #2e7d32; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .btn-go { background: #333; color: white; border: none; padding: 0 15px; border-radius: 4px; font-weight: bold; }
 
-        /* HEADER */
-        .header {
-            background: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;
-            display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .credit-badge { background: #e3f2fd; color: #1565c0; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid #bbdefb; }
-        .logout-btn { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-left: 10px; }
-
-        /* LAYOUT */
-        .main-layout { display: flex; flex-direction: column; gap: 20px; }
-        @media(min-width: 800px) { .main-layout { flex-direction: row; } .sidebar { width: 350px; } .canvas-area { flex: 1; } }
-
-        /* CONTROLS */
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 5px; }
+        /* APP LAYOUT */
+        #appContainer { display: none; max-width: 1200px; margin: 0 auto; padding: 10px; }
+        .header { background: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .credit-badge { background: #e3f2fd; color: #1565c0; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; border: 1px solid #90caf9; }
+        
+        /* CARD STYLES */
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .row { display: flex; gap: 10px; margin-bottom: 10px; } .col { flex: 1; }
+        label { display: block; font-size: 11px; font-weight: 700; color: #666; margin-bottom: 4px; text-transform: uppercase; }
         input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        .row { display: flex; gap: 10px; } .col { flex: 1; }
-        
-        .upload-box { background: #fff8e1; border: 2px dashed #ffb300; padding: 15px; border-radius: 8px; text-align: center; }
-        .upload-btn { display: inline-block; padding: 8px 15px; background: #ffb300; color: #333; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 5px; font-size: 13px; }
-        
+
+        /* UPLOAD BOX */
+        .upload-area { background: #fff8e1; border: 2px dashed #ffb300; padding: 15px; border-radius: 8px; text-align: center; }
+        .or-divider { margin: 10px 0; font-size: 12px; color: #999; font-weight: bold; position: relative; }
+        .or-divider::before, .or-divider::after { content: ""; display: inline-block; width: 30%; height: 1px; background: #ddd; vertical-align: middle; margin: 0 5px; }
+
         /* CANVAS */
-        .canvas-area { text-align: center; background: #cfd8dc; padding: 20px; border-radius: 12px; overflow: auto; min-height: 500px; display: flex; flex-direction: column; align-items: center;}
-        canvas { background: white; box-shadow: 0 5px 20px rgba(0,0,0,0.2); max-width: 100%; height: auto; }
-        
-        .download-btn { width: 100%; padding: 15px; background: #2e7d32; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-        .download-btn:hover { background: #1b5e20; }
+        .canvas-wrapper { text-align: center; background: #cfd8dc; padding: 10px; border-radius: 8px; overflow: auto; min-height: 400px; display: flex; align-items: center; justify-content: center; }
+        canvas { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 100%; height: auto; }
     </style>
 </head>
 <body>
 
-    <div id="loginOverlay">
+    <div id="loadingOverlay" class="overlay">
+        <div class="spinner"></div>
+        <h3 id="loadingText">Starting App...</h3>
+    </div>
+
+    <div id="loginOverlay" class="overlay" style="display:none;">
         <div class="login-box">
-            <h2>🔐 Login Required</h2>
-            <p>Hakimi Preview Maker v3.0</p>
-            <button class="google-btn" onclick="googleLogin()">Sign in with Google</button>
-            <p id="loginMsg" style="color:red; font-size:12px; margin-top:15px;"></p>
+            <h2>🔐 Hakimi Tools</h2>
+            <p>Please sign in to access</p>
+            <button class="btn-google" onclick="handleGoogleLogin()">Sign in with Google</button>
+            <p id="errorMsg" style="color:red; font-size:12px; margin-top:15px; display:none;"></p>
         </div>
     </div>
 
     <div id="appContainer">
         
         <div class="header">
-            <strong>Hakimi Tools</strong>
-            <div>
+            <strong>Hakimi Preview</strong>
+            <div style="display:flex; align-items:center; gap:10px;">
                 <span id="creditDisplay" class="credit-badge">Credits: ...</span>
-                <button class="logout-btn" onclick="firebase.auth().signOut()">Logout</button>
+                <button onclick="auth.signOut()" style="border:none; background:none; color:#c62828; font-weight:bold; font-size:12px;">LOGOUT</button>
             </div>
         </div>
 
-        <div class="main-layout">
-            
-            <div class="sidebar">
+        <div class="card">
+            <label>📷 Select Image (Cost: 5 Credits)</label>
+            <div class="upload-area">
+                <input type="file" id="fileIn" accept="image/*" style="width:100%">
                 
-                <div class="card">
-                    <label>📷 Load Image (Cost: 5 Credits)</label>
-                    <div class="upload-box">
-                        <label>Option 1: Upload File</label>
-                        <input type="file" id="fileInput" accept="image/*" style="display:none">
-                        <label for="fileInput" class="upload-btn">Choose File</label>
-                        
-                        <div style="margin: 15px 0; height: 1px; background: #ddd; position: relative;">
-                            <span style="position: absolute; top: -10px; left: 45%; background: #fff8e1; padding: 0 5px; color: #999; font-size: 12px;">OR</span>
-                        </div>
-
-                        <label>Option 2: Paste Link</label>
-                        <div style="display:flex; gap:5px; margin-top:5px;">
-                            <input type="text" id="linkInput" placeholder="https://..." style="font-size:12px;">
-                            <button onclick="handleLinkLoad()" style="background:#333; color:white; border:none; padding:0 10px; border-radius:4px; cursor:pointer;">Go</button>
-                        </div>
-                    </div>
+                <div class="or-divider">OR PASTE LINK</div>
+                
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="linkIn" placeholder="https://..." style="font-size:12px;">
+                    <button class="btn-go" onclick="loadLink()">GO</button>
                 </div>
-
-                <div class="card">
-                    <div class="input-group row">
-                        <div class="col"><label>Ext. Color</label><input type="color" id="extColor" value="#ffffff" style="height:40px" oninput="draw()"></div>
-                        <div class="col"><label>Gap (inch)</label><input type="number" id="inpGap" value="2" oninput="draw()"></div>
-                    </div>
-                    
-                    <div class="input-group" style="background:#f1f8e9; padding:10px; border-radius:6px; border:1px solid #c5e1a5;">
-                        <label style="color:#33691e;">✂️ Split Widths (Comma separated)</label>
-                        <input type="text" id="splitW" placeholder="e.g. 55, 55" oninput="draw()">
-                        <label style="color:#33691e; margin-top:10px;">✂️ Split Heights (Comma separated)</label>
-                        <input type="text" id="splitH" placeholder="e.g. 30, 30" oninput="draw()">
-                    </div>
-
-                    <div class="input-group row">
-                        <div class="col"><label>Total Width</label><input type="number" id="totalW" value="100" oninput="draw()"></div>
-                        <div class="col"><label>Total Height</label><input type="number" id="totalH" value="90" oninput="draw()"></div>
-                    </div>
-
-                    <div class="input-group">
-                        <label>Panel Shape</label>
-                        <select id="shape" onchange="draw()">
-                            <option value="rect">Rectangle</option>
-                            <option value="arch-top">Arch (Top Only)</option>
-                            <option value="arch-bottom">Arch (Bottom Only)</option>
-                            <option value="circle">Circle</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="canvas-area">
-                <button class="download-btn" onclick="downloadCanvas()">⬇️ Download Preview</button>
-                <canvas id="mainCanvas"></canvas>
             </div>
         </div>
+
+        <div class="card">
+            <div class="row">
+                <div class="col"><label>Ext. Color</label><input type="color" id="extColor" value="#ffffff" style="height:40px" oninput="draw()"></div>
+                <div class="col"><label>Gap (in)</label><input type="number" id="inpGap" value="2" oninput="draw()"></div>
+            </div>
+
+            <div class="row" style="background:#f1f8e9; padding:8px; border-radius:6px; border:1px solid #c5e1a5;">
+                <div class="col">
+                    <label style="color:#33691e;">Split Widths</label>
+                    <input type="text" id="splitW" placeholder="55, 55" oninput="draw()">
+                </div>
+                <div class="col">
+                    <label style="color:#33691e;">Split Heights</label>
+                    <input type="text" id="splitH" placeholder="30, 30" oninput="draw()">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col"><label>Total Width</label><input type="number" id="totalW" value="100" oninput="draw()"></div>
+                <div class="col"><label>Total Height</label><input type="number" id="totalH" value="90" oninput="draw()"></div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Shape</label>
+                    <select id="shape" onchange="draw()">
+                        <option value="rect">Rectangle</option>
+                        <option value="arch-top">Arch (Top Only)</option>
+                        <option value="arch-bottom">Arch (Bottom Only)</option>
+                        <option value="circle">Circle</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-download" onclick="downloadImage()">⬇️ Download Preview</button>
+        <div class="canvas-wrapper">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
     </div>
 
     <script>
-        // --- 1. CONFIGURATION (PASTE KEYS HERE) ---
+        // --- 1. FIREBASE CONFIG (PASTE KEYS HERE) ---
         const firebaseConfig = {
-            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
-            authDomain: "customise-previews.firebaseapp.com",
-            projectId: "customise-previews",
-            storageBucket: "customise-previews.firebasestorage.app",
-            messagingSenderId: "1073406972228",
-            appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+            apiKey: "PASTE_API_KEY",
+            authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+            projectId: "PASTE_PROJECT_ID",
+            storageBucket: "PASTE_PROJECT_ID.appspot.com",
+            messagingSenderId: "PASTE_SENDER_ID",
+            appId: "PASTE_APP_ID"
         };
+        // --------------------------------------------
 
         // Init Firebase
         firebase.initializeApp(firebaseConfig);
@@ -162,40 +151,277 @@
 
         let currentUser = null;
         let uploadedImg = null;
-        const PREVIEW_COST = 5; // Cost per image
+        const PREVIEW_COST = 5;
 
-        // --- 2. AUTHENTICATION LOGIC ---
+        // --- 2. AUTHENTICATION (Mobile Friendly) ---
         
-        function googleLogin() {
-    // 1. Use REDIRECT (Better for phones)
-    auth.signInWithRedirect(provider);
-}
+        // Handle Redirect Result (Runs when page reloads after Google Login)
+        auth.getRedirectResult()
+            .then((result) => {
+                if (result.user) {
+                    // Login Successful
+                    console.log("Redirect Login Success");
+                }
+            })
+            .catch((error) => {
+                document.getElementById('errorMsg').style.display = 'block';
+                document.getElementById('errorMsg').innerText = "Login Failed: " + error.message;
+                showScreen('login');
+            });
 
-// 2. Check for errors when the page reloads after redirect
-auth.getRedirectResult().catch((error) => {
-    // This will pop up the exact error on your phone screen
-    alert("Login Error: " + error.message);
-    document.getElementById('loginMsg').innerText = error.message;
-});
-
-
+        // Listen for Auth State
         auth.onAuthStateChanged(user => {
             if (user) {
                 currentUser = user;
-                // Show App, Hide Login
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'block';
-                
-                // Init User DB
-                const userRef = db.collection('users').doc(user.uid);
-                userRef.get().then(doc => {
-                    if(!doc.exists) {
-                        userRef.set({ email: user.email, credits: 10 }); // Free 10 credits
-                    }
-                });
+                initUserDB(user);
+            } else {
+                currentUser = null;
+                showScreen('login');
+            }
+        });
 
-                // Listen to Credits
-                userRef.onSnapshot(doc => {
+        function handleGoogleLogin() {
+            document.getElementById('loadingText').innerText = "Connecting to Google...";
+            showScreen('loading');
+            // USE REDIRECT (Best for Mobile)
+            auth.signInWithRedirect(provider);
+        }
+
+        // Initialize User Data
+        function initUserDB(user) {
+            document.getElementById('loadingText').innerText = "Loading Profile...";
+            const ref = db.collection('users').doc(user.uid);
+            
+            ref.onSnapshot(doc => {
+                if(!doc.exists) {
+                    ref.set({ email: user.email, credits: 10 }); // Free 10 credits
+                } else {
+                    const creds = doc.data().credits || 0;
+                    document.getElementById('creditDisplay').innerText = `Credits: ${creds}`;
+                    document.getElementById('creditDisplay').style.color = creds < 5 ? 'red' : '#1565c0';
+                }
+                showScreen('app');
+                draw(); // Initial Draw
+            });
+        }
+
+        function showScreen(name) {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'none';
+
+            if(name === 'loading') document.getElementById('loadingOverlay').style.display = 'flex';
+            if(name === 'login') document.getElementById('loginOverlay').style.display = 'flex';
+            if(name === 'app') document.getElementById('appContainer').style.display = 'block';
+        }
+
+
+        // --- 3. LOGIC & PAYMENTS ---
+
+        // File Handler
+        document.getElementById('fileIn').addEventListener('change', async (e) => {
+            if(!e.target.files[0]) return;
+            const file = e.target.files[0];
+            e.target.value = ''; // Reset
+
+            if(!confirm(`Load Image for ${PREVIEW_COST} Credits?`)) return;
+
+            showLoader(true);
+            const paid = await processPayment();
+            if(paid) {
+                const r = new FileReader();
+                r.onload = (evt) => {
+                    const img = new Image();
+                    img.onload = () => { 
+                        uploadedImg = img; 
+                        autoColor(img);
+                        draw(); 
+                        showLoader(false);
+                    };
+                    img.src = evt.target.result;
+                };
+                r.readAsDataURL(file);
+            } else {
+                showLoader(false);
+            }
+        });
+
+        // Link Handler
+        async function loadLink() {
+            const url = document.getElementById('linkIn').value;
+            if(!url) return alert("Paste link first");
+            if(!confirm(`Load Link for ${PREVIEW_COST} Credits?`)) return;
+
+            showLoader(true);
+            const paid = await processPayment();
+            if(paid) {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => {
+                    uploadedImg = img;
+                    autoColor(img);
+                    draw();
+                    showLoader(false);
+                };
+                img.onerror = () => {
+                    alert("Image Blocked by Source (CORS). Try saving file.");
+                    showLoader(false);
+                };
+                img.src = url;
+            } else {
+                showLoader(false);
+            }
+        }
+
+        async function processPayment() {
+            const ref = db.collection('users').doc(currentUser.uid);
+            try {
+                await db.runTransaction(async (t) => {
+                    const doc = await t.get(ref);
+                    const bal = doc.data().credits || 0;
+                    if(bal < PREVIEW_COST) throw "NO_FUNDS";
+                    t.update(ref, { credits: bal - PREVIEW_COST });
+                });
+                return true;
+            } catch(e) {
+                if(e === "NO_FUNDS") alert("❌ Insufficient Credits! Contact Admin.");
+                else alert("Error: " + e);
+                return false;
+            }
+        }
+
+        function showLoader(show) {
+            if(show) {
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                document.getElementById('loadingText').innerText = "Processing...";
+            } else {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }
+
+        function autoColor(img) {
+            try {
+                const c = document.createElement('canvas'); c.width=1; c.height=1;
+                c.getContext('2d').drawImage(img,0,0,1,1);
+                const p = c.getContext('2d').getImageData(0,0,1,1).data;
+                const hex = "#" + ((1 << 24) + (p[0] << 16) + (p[1] << 8) + p[2]).toString(16).slice(1);
+                document.getElementById('extColor').value = hex;
+            } catch(e) {}
+        }
+
+
+        // --- 4. DRAWING ENGINE ---
+        function draw() {
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // 1. Get Inputs
+            const totalW = parseFloat(document.getElementById('totalW').value) || 100;
+            const totalH = parseFloat(document.getElementById('totalH').value) || 100;
+            const gap = parseFloat(document.getElementById('inpGap').value) || 0;
+            const extColor = document.getElementById('extColor').value;
+            const shapeType = document.getElementById('shape').value;
+            
+            // 2. Parse Grids
+            const sW = document.getElementById('splitW').value;
+            const sH = document.getElementById('splitH').value;
+            const cols = sW.trim() ? sW.split(',').map(n=>parseFloat(n)).filter(n=>n>0) : [totalW];
+            const rows = sH.trim() ? sH.split(',').map(n=>parseFloat(n)).filter(n=>n>0) : [totalH];
+
+            // 3. Setup Canvas
+            const PPI = 10;
+            const gridW = cols.reduce((a,b)=>a+b,0);
+            const gridH = rows.reduce((a,b)=>a+b,0);
+            const visW = gridW + ((cols.length-1)*gap);
+            const visH = gridH + ((rows.length-1)*gap);
+
+            canvas.width = (visW * PPI) + 100;
+            canvas.height = (visH * PPI) + 100;
+            
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,canvas.width, canvas.height);
+            
+            const startX = (canvas.width - (visW*PPI))/2;
+            const startY = (canvas.height - (visH*PPI))/2;
+            const gapPx = gap * PPI;
+
+            // 4. Loop & Draw
+            let currentY = startY;
+            let accumH = 0; // Logical H offset
+
+            rows.forEach((hVal, rIndex) => {
+                let currentX = startX;
+                let accumW = 0; // Logical W offset
+                
+                // Shape Logic
+                let rowShape = 'rect';
+                if(shapeType === 'circle') rowShape = 'circle';
+                else if(shapeType === 'arch-top' && rIndex === 0) rowShape = 'arch-top';
+                else if(shapeType === 'arch-bottom' && rIndex === rows.length-1) rowShape = 'arch-bottom';
+
+                cols.forEach((wVal, cIndex) => {
+                    const drawW = wVal * PPI;
+                    const drawH = hVal * PPI;
+                    
+                    ctx.save();
+                    
+                    // A. Path
+                    ctx.beginPath();
+                    if(rowShape==='rect') ctx.rect(currentX, currentY, drawW, drawH);
+                    else if(rowShape==='circle') ctx.ellipse(currentX+drawW/2, currentY+drawH/2, drawW/2, drawH/2, 0, 0, 2*Math.PI);
+                    else if(rowShape.includes('arch')) {
+                        const archD = Math.min(drawH, 10*PPI);
+                        if(rowShape==='arch-top') {
+                            ctx.moveTo(currentX, currentY+drawH); ctx.lineTo(currentX, currentY+archD);
+                            ctx.bezierCurveTo(currentX, currentY, currentX+drawW, currentY, currentX+drawW, currentY+archD);
+                            ctx.lineTo(currentX+drawW, currentY+drawH);
+                        } else {
+                            ctx.moveTo(currentX, currentY); ctx.lineTo(currentX+drawW, currentY);
+                            ctx.lineTo(currentX+drawW, currentY+drawH-archD);
+                            ctx.bezierCurveTo(currentX+drawW, currentY+drawH, currentX, currentY+drawH, currentX, currentY+drawH-archD);
+                            ctx.lineTo(currentX, currentY);
+                        }
+                        ctx.closePath();
+                    }
+                    ctx.clip();
+
+                    // B. Fill & Image
+                    ctx.fillStyle = extColor; ctx.fill();
+
+                    if(uploadedImg) {
+                        // Map Image to Primary Total W/H
+                        const pW = totalW * PPI;
+                        const pH = totalH * PPI;
+                        
+                        // Calculate where the TOP-LEFT of the image sits relative to this cell
+                        const originX = currentX - (accumW * PPI);
+                        const originY = currentY - (accumH * PPI);
+                        
+                        ctx.save();
+                        // Inner Clip: Restrict image to Primary Dimensions
+                        ctx.beginPath(); ctx.rect(originX, originY, pW, pH); ctx.clip();
+                        ctx.drawImage(uploadedImg, originX, originY, pW, pH);
+                        ctx.restore();
+                    }
+
+                    ctx.restore(); // End Shape Clip
+
+                    // C. Stroke
+                    ctx.lineWidth = 2; ctx.strokeStyle = "#333";
+                    ctx.beginPath();
+                    // ... Redraw path for stroke (Simplified) ...
+                    if(rowShape==='rect') ctx.rect(currentX, currentY, drawW, drawH);
+                    else if(rowShape==='circle') ctx.ellipse(currentX+drawW/2, currentY+drawH/2, drawW/2, drawH/2, 0, 0, 2*Math.PI);
+                    else if(rowShape==='arch-top') {
+                        const archD = Math.min(drawH, 10*PPI);
+                        ctx.moveTo(currentX, currentY+drawH); ctx.lineTo(currentX, currentY+archD);
+                        ctx.bezierCurveTo(currentX, currentY, currentX+drawW, currentY, currentX+drawW, currentY+archD);
+                        ctx.lineTo(currentX+drawW, currentY+drawH); ctx.closePath();
+                    } else {
+                        const archD = Math.min(drawH, 10*PPI);
+                        ctx.moveTo(currentX, currentY); ctx.lineTo(currentX+drawW, currentY);
+                        ctx.lineTo(currentX+drawW, currentY+drawH-archD);
+                        ctx.bezierCurveTo(currentX+drawW, currentY+drawH, currentX, currentY+drawH, currentX, currentY+drawH-archD);
+                        ctx.lineTo(c       userRef.onSnapshot(doc => {
                     if(doc.exists) {
                         const creds = doc.data().credits || 0;
                         document.getElementById('creditDisplay').innerText = `Credits: ${creds}`;
@@ -538,11 +764,11 @@ auth.getRedirectResult().catch((error) => {
         // REPLACE THESE WITH YOUR FIREBASE KEYS
         const firebaseConfig = {
             apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
-            authDomain: "customise-previews.firebaseapp.com",
-            projectId: "customise-previews",
-            storageBucket: "customise-previews.firebasestorage.app",
-            messagingSenderId: "1073406972228",
-            appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+  authDomain: "customise-previews.firebaseapp.com",
+  projectId: "customise-previews",
+  storageBucket: "customise-previews.firebasestorage.app",
+  messagingSenderId: "1073406972228",
+  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
         };
 
         firebase.initializeApp(firebaseConfig);
