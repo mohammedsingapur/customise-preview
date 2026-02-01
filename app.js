@@ -1,39 +1,184 @@
 // app.js
 console.log("2. Loading App Logic...");
 
-// SAFETY CHECK
-if (!window.auth || !window.db) {
-    alert("CRITICAL ERROR: Firebase not found. Check config.js keys.");
-    throw new Error("Firebase missing");
-}
-
-let currentUser = null;
-let currentImg = null;
-let tempSrc = null;
-
-// --- AUTH ---
-window.auth.onAuthStateChanged(user => {
-    if (user) {
-        currentUser = user;
-        document.getElementById('login-view').style.display = 'none';
-        document.getElementById('app-view').style.display = 'flex';
-        
-        window.db.collection('users').doc(user.uid).onSnapshot(doc => {
-            if (!doc.exists) window.db.collection('users').doc(user.uid).set({email:user.email, credits:10});
-            else document.getElementById('creds').innerText = (doc.data().credits || 0) + " Credits";
-        });
-        setTimeout(draw, 500);
-    } else {
-        document.getElementById('login-view').style.display = 'flex';
-        document.getElementById('app-view').style.display = 'none';
+// Wait for window load to ensure firebase is ready
+window.addEventListener('load', () => {
+    
+    // SAFETY CHECK
+    if (!window.auth || !window.db) {
+        console.error("Firebase missing. Check config.js");
+        return;
     }
-});
 
-function handleLogin(e) {
-    e.preventDefault();
-    const em = document.getElementById('email').value;
-    const pw = document.getElementById('pass').value;
-    document.getElementById('log').innerText = "Logging in...";
+    let currentUser = null;
+    let currentImg = null;
+    let tempSrc = null;
+
+    // --- AUTH ---
+    window.auth.onAuthStateChanged(user => {
+        if (user) {
+            currentUser = user;
+            document.getElementById('login-view').style.display = 'none';
+            document.getElementById('app-view').style.display = 'flex';
+            
+            window.db.collection('users').doc(user.uid).onSnapshot(doc => {
+                if (!doc.exists) {
+                    window.db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
+                } else {
+                    document.getElementById('creds').innerText = (doc.data().credits || 0) + " Credits";
+                }
+            });
+            setTimeout(draw, 500);
+        } else {
+            document.getElementById('login-view').style.display = 'flex';
+            document.getElementById('app-view').style.display = 'none';
+        }
+    });
+
+    // Make functions global so HTML can see them
+    window.handleLogin = function(e) {
+        e.preventDefault();
+        const em = document.getElementById('email').value;
+        const pw = document.getElementById('pass').value;
+        document.getElementById('log').innerText = "Logging in...";
+        window.auth.signInWithEmailAndPassword(em, pw).catch(err => document.getElementById('log').innerText = err.message);
+    };
+
+    window.handleSignup = function() {
+        const em = document.getElementById('email').value;
+        const pw = document.getElementById('pass').value;
+        if(!em || !pw) return alert("Enter email & password");
+        document.getElementById('log').innerText = "Creating account...";
+        window.auth.createUserWithEmailAndPassword(em, pw).catch(err => document.getElementById('log').innerText = err.message);
+    };
+
+    window.handleLogout = function() {
+        window.auth.signOut();
+    };
+
+    // --- IMAGE ---
+    document.getElementById('file-in').addEventListener('change', e => {
+        if (e.target.files[0]) {
+            const r = new FileReader();
+            r.onload = evt => { 
+                tempSrc = evt.target.result; 
+                document.getElementById('modal').style.display = 'flex'; 
+            };
+            r.readAsDataURL(e.target.files[0]);
+            e.target.value = ''; 
+        }
+    });
+
+    window.closeModal = async function(pay) {
+        document.getElementById('modal').style.display = 'none';
+        if(pay && tempSrc) {
+            const ref = window.db.collection('users').doc(currentUser.uid);
+            try {
+                await window.db.runTransaction(async t => {
+                    const d = await t.get(ref);
+                    const c = d.data().credits || 0;
+                    if(c < 4) throw "Low Balance";
+                    t.update(ref, { credits: c - 4 });
+                });
+                const i = new Image();
+                i.onload = () => { currentImg = i; draw(); };
+                i.src = tempSrc;
+            } catch(e) { alert(e); }
+        }
+    };
+
+    // --- DRAW ---
+    function getV(id) { 
+        const e = document.getElementById(id); 
+        return parseFloat(e.value || e.placeholder) || 0; 
+    }
+
+    window.draw = function() {
+        const cvs = document.getElementById('cvs');
+        const ctx = cvs.getContext('2d');
+        
+        // Inputs
+        const tW = getV('tW'), tH = getV('tH'), gap = getV('gap');
+        
+        // Parse Lists safely
+        let sW_txt = document.getElementById('sW').value || "55,55";
+        let sH_txt = document.getElementById('sH').value || "90";
+        
+        const sW = sW_txt.split(',').map(Number).filter(n=>n);
+        const sH = sH_txt.split(',').map(Number).filter(n=>n);
+        
+        const cols = sW.length ? sW : [tW];
+        const rows = sH.length ? sH : [tH];
+        
+        // Setup
+        const PPI = 5, P = 20;
+        const gW = cols.reduce((a,b)=>a+b,0);
+        const gH = rows.reduce((a,b)=>a+b,0);
+        
+        const vW = gW + (cols.length-1)*gap;
+        const vH = gH + (rows.length-1)*gap;
+        
+        cvs.width = (vW*PPI) + (P*2);
+        cvs.height = (vH*PPI) + (P*2);
+        
+        ctx.fillStyle = "white"; ctx.fillRect(0,0,cvs.width, cvs.height);
+        
+        let cY = P;
+        
+        rows.forEach(h => {
+            let cX = P, aW = 0, aH = 0; // Fixed accumulator logic
+            
+            // Recalculate accumulated Height for this row
+            // We need correct Y offset for image mapping
+            // Simpler approach for this version: just use cY relative to canvas P
+            
+            cols.forEach(w => {
+                const dW = w*PPI, dH = h*PPI;
+                
+                // Draw Cell
+                ctx.save();
+                ctx.beginPath(); ctx.rect(cX, cY, dW, dH); ctx.clip();
+                ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
+                
+                if(currentImg) {
+                    // Calculate Image Position relative to this cell
+                    // The Image should cover the TOTAL area (tW x tH)
+                    // So we draw the FULL image at an offset
+                    // Offset = cX - (accumulated Width of previous cols)
+                    const oX = cX - (aW*PPI);
+                    
+                    // Y Offset is trickier in loop, but cY is accurate current Y
+                    // We need startY of the whole grid? No, just P.
+                    const oY = cY; // This assumes row-by-row image mapping, let's stick to simple for now
+                    
+                    // Correct mapping requires tracking global X/Y
+                    // Let's just draw image at 0,0 of cell for safety if grid logic is complex
+                    // OR try the specific offset:
+                    ctx.drawImage(currentImg, cX - (aW*PPI), cY - ((cY-P)), tW*PPI, tH*PPI);
+                }
+                
+                ctx.stroke(); 
+                ctx.restore();
+                
+                // Text
+                ctx.fillStyle="black"; ctx.font="12px Arial"; ctx.textAlign="center";
+                ctx.fillText(w+'"', cX+dW/2, cY+dH+15);
+                ctx.save(); ctx.translate(cX-10, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"',0,0); ctx.restore();
+
+                cX += dW + gap*PPI; 
+                aW += w;
+            });
+            cY += h*PPI + gap*PPI;
+        });
+    };
+
+    window.download = function() {
+        const a = document.createElement('a');
+        a.download = 'preview.png';
+        a.href = document.getElementById('cvs').toDataURL();
+        a.click();
+    };
+});
     window.auth.signInWithEmailAndPassword(em, pw).catch(err => document.getElementById('log').innerText = err.message);
 }
 
