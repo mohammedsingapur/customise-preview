@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro v26 (Mobile Ready)</title>
+    <title>Hakimi Pro v27</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -65,10 +65,10 @@
         .btn-black { width: 100%; padding: 14px; background: #111; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .btn-link { background: none; border: none; color: #dc2626; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 5px; }
 
-        /* CANVAS AREA - MOBILE OPTIMIZED */
+        /* CANVAS AREA - CSS FIXED FOR MOBILE */
         main { 
             flex: 1; 
-            background: #e5e5e5; 
+            background: #f3f4f6; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -82,18 +82,19 @@
             height: 100%; 
             display: flex; 
             justify-content: center; 
-            align-items: center;
-            overflow: hidden;
+            align-items: center; 
+            overflow: hidden; 
         }
-        /* THIS FIXES THE MOBILE SIZING */
+        
+        /* THIS IS THE FIX: Fits canvas to screen while keeping aspect ratio */
         canvas { 
             background: white; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2); 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
             cursor: grab; 
             touch-action: none;
-            max-width: 100%;  /* Fits width of phone */
-            max-height: 100%; /* Fits height of available space */
-            object-fit: contain; /* Keeps aspect ratio correct */
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
         canvas:active { cursor: grabbing; }
         
@@ -433,4 +434,37 @@
                             else { drawW = totalW_px; drawH = totalW_px / imgRatio; }
                         }
                         
-                        ctx.drawImage(currentImg,
+                        ctx.drawImage(currentImg, -drawW/2, -drawH/2, drawW, drawH);
+                        ctx.restore();
+                    }
+                    ctx.restore();
+                    ctx.lineWidth=3; ctx.strokeStyle="#333";
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
+                    ctx.fillStyle="black"; ctx.font="bold 24px Arial"; ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+30);
+                    ctx.save(); ctx.translate(cX-15, cY+dH/2); ctx.rotate(-Math.PI/2);
+                    ctx.fillText(h+'"', 0, 0); ctx.restore();
+                    cX += dW + (gap*PPI); accW += w;
+                });
+                cY += (h*PPI) + (gap*PPI); accH += h;
+            });
+        }
+
+        function trace(ctx, x, y, w, h, t, p) {
+            var d = Math.min(h, 10*p);
+            if(t==='rect') ctx.rect(x,y,w,h);
+            else if(t==='circle') ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, 2*Math.PI);
+            else if(t==='arch-top') { ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); ctx.lineTo(x+w,y+h); }
+            else if(t==='arch-bottom') { ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h-d); ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); ctx.lineTo(x,y); }
+            ctx.closePath();
+        }
+
+        function downloadCanvas() {
+            var a = document.createElement('a');
+            a.download = 'hakimi-preview.png';
+            a.href = document.getElementById('cvs').toDataURL();
+            a.click();
+        }
+    </script>
+</body>
+</html>
