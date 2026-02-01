@@ -3,229 +3,437 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hakimi Preview v3.1</title>
-    <script src="//cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
+    <title>Hakimi Preview Pro</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; margin: 0; }
+        /* --- PROFESSIONAL UI THEME --- */
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --bg-body: #f3f4f6;
+            --bg-card: #ffffff;
+            --text-main: #1f2937;
+            --text-sub: #6b7280;
+            --border: #e5e7eb;
+            --sidebar-w: 320px;
+        }
+
+        body { font-family: 'Inter', sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; height: 100vh; display: flex; flex-direction: column; }
         
+        /* LAYOUT GRID */
+        .app-shell { display: none; flex: 1; overflow: hidden; height: 100%; }
+        .sidebar { width: var(--sidebar-w); background: var(--bg-card); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; z-index: 10; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .canvas-viewport { flex: 1; background: #e5e5e5; overflow: auto; display: flex; align-items: center; justify-content: center; position: relative; padding: 40px; }
+
+        /* HEADER (Top Bar) */
+        .top-bar { height: 60px; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+        .logo { font-weight: 700; font-size: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        .user-menu { display: flex; align-items: center; gap: 15px; }
+        .credit-pill { background: #eff6ff; color: var(--primary); padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; border: 1px solid #bfdbfe; }
+        .logout-link { color: #ef4444; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+
+        /* SIDEBAR CONTROLS */
+        .control-group { padding: 20px; border-bottom: 1px solid var(--border); }
+        .control-group h3 { font-size: 0.75rem; text-transform: uppercase; color: var(--text-sub); letter-spacing: 0.05em; margin: 0 0 10px 0; }
+        
+        .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .input-col { flex: 1; }
+        
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: var(--text-main); }
+        input[type="text"], input[type="number"], select {
+            width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+            font-size: 0.9rem; color: var(--text-main); box-sizing: border-box; transition: border 0.2s;
+        }
+        input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+        input[type="color"] { width: 100%; height: 38px; padding: 2px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+
+        /* UPLOAD BOX */
+        .upload-zone {
+            background: #fffbeb; border: 2px dashed #fcd34d; border-radius: 8px; padding: 15px; text-align: center;
+        }
+        .btn-upload {
+            background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; 
+            font-weight: 600; cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; display: inline-block;
+        }
+        .btn-link { background: #333; color: white; border: none; padding: 0 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+        /* ACTION BAR (Bottom Sidebar) */
+        .sidebar-footer { padding: 20px; margin-top: auto; background: #f9fafb; border-top: 1px solid var(--border); }
+        .btn-download {
+            width: 100%; background: var(--primary); color: white; border: none; padding: 12px;
+            border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); transition: background 0.2s;
+        }
+        .btn-download:hover { background: var(--primary-dark); }
+
+        /* CANVAS */
+        canvas { background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.15); max-width: 100%; height: auto; border-radius: 4px; }
+
         /* LOGIN SCREEN */
         #loginScreen {
-            height: 100vh; display: flex; flex-direction: column; 
-            justify-content: center; align-items: center; background: #333;
+            position: fixed; inset: 0; background: white; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .box { background: white; padding: 30px; border-radius: 12px; width: 300px; text-align: center; }
-        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
-        .btn-main { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 16px; }
-        .btn-sec { background: transparent; color: #007bff; border: none; margin-top: 10px; cursor: pointer; text-decoration: underline; }
+        .login-card { width: 320px; text-align: center; }
+        .login-input { width: 100%; margin: 8px 0; padding: 12px; border: 1px solid var(--border); border-radius: 6px; }
+        .btn-login { width: 100%; padding: 12px; background: var(--text-main); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .error-msg { color: #dc2626; font-size: 0.85rem; margin-top: 10px; }
+        .link-text { color: var(--primary); font-size: 0.85rem; cursor: pointer; margin-top: 15px; display: inline-block; text-decoration: underline; }
 
-        /* APP SCREEN */
-        #appScreen { display: none; padding: 20px; }
-        .header { background: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .canvas-container { margin-top: 20px; text-align: center; background: #ddd; padding: 10px; border-radius: 8px; overflow: auto; }
-        canvas { background: white; max-width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .app-shell { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+            .canvas-viewport { padding: 20px; min-height: 400px; }
+        }
     </style>
 </head>
 <body>
 
     <div id="loginScreen">
-        <div class="box">
-            <h2>🔐 Hakimi Tools</h2>
-            <p>Login to continue</p>
+        <div class="login-card">
+            <h1 style="margin-bottom: 5px;">Hakimi Preview</h1>
+            <p style="color:var(--text-sub); margin-bottom: 20px;">Professional Wallpaper Tool</p>
+
+            <div id="authForm">
+                <input type="email" id="emailIn" class="login-input" placeholder="Email address">
+                <input type="password" id="passIn" class="login-input" placeholder="Password">
+                
+                <button class="btn-login" onclick="doLogin()">Sign In</button>
+                <button class="btn-login" onclick="doSignup()" style="background:white; color:var(--text-main); border:1px solid var(--border);">Create Account</button>
+            </div>
             
-            <input type="email" id="uEmail" placeholder="Email Address">
-            <input type="password" id="uPass" placeholder="Password">
-            
-            <button class="btn-main" onclick="emailLogin()">Login</button>
-            <button class="btn-sec" onclick="emailSignup()">First time? Register</button>
-            
-            <p id="msg" style="color:red; margin-top:10px; font-size:13px;"></p>
+            <p id="authError" class="error-msg"></p>
         </div>
     </div>
 
-    <div id="appScreen">
-        <div class="header">
-            <strong>Hakimi Preview</strong>
-            <button onclick="logout()" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px;">Logout</button>
-        </div>
+    <div id="appShell" class="app-shell">
         
-        <div style="margin-top:20px; background:white; padding:15px; border-radius:8px;">
-            <label>Upload Image</label>
-            <input type="file" id="fInput" accept="image/*" style="width:100%">
-            <p style="font-size:12px; color:#666;">(Credits will be deducted automatically)</p>
-        </div>
+        <header class="top-bar">
+            <div class="logo">📐 Hakimi Pro</div>
+            <div class="user-menu">
+                <span id="creditBadge" class="credit-pill">Credits: ...</span>
+                <span class="logout-link" onclick="auth.signOut()">Logout</span>
+            </div>
+        </header>
 
-        <div class="canvas-container">
-            <canvas id="mainCanvas" width="300" height="300"></canvas>
+        <div style="display: flex; flex: 1; height: calc(100% - 60px);">
+            
+            <aside class="sidebar">
+                
+                <div class="control-group">
+                    <h3>Source Image</h3>
+                    <div class="upload-zone">
+                        <input type="file" id="fileInput" accept="image/*" style="display:none">
+                        <label for="fileInput" class="btn-upload">📁 Upload File</label>
+                        <div style="font-size:0.75rem; color:#b45309; margin-top:5px;">Cost: 4 Credits</div>
+                        
+                        <div style="margin: 10px 0; border-top: 1px solid rgba(0,0,0,0.1);"></div>
+                        
+                        <div style="display:flex; gap:5px;">
+                            <input type="text" id="linkInput" placeholder="Paste image link..." style="font-size:0.8rem;">
+                            <button class="btn-link" onclick="handleLink()">GO</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h3>Grid Configuration</h3>
+                    <label>Split Widths (Columns)</label>
+                    <input type="text" id="splitW" placeholder="e.g. 55, 55" value="55, 55" oninput="draw()">
+                    
+                    <label style="margin-top:10px">Split Heights (Rows)</label>
+                    <input type="text" id="splitH" placeholder="e.g. 90" value="90" oninput="draw()">
+                </div>
+
+                <div class="control-group">
+                    <h3>Wall Settings</h3>
+                    <div class="input-row">
+                        <div class="input-col">
+                            <label>Total W</label>
+                            <input type="number" id="totalW" value="110" oninput="draw()">
+                        </div>
+                        <div class="input-col">
+                            <label>Total H</label>
+                            <input type="number" id="totalH" value="90" oninput="draw()">
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-col">
+                            <label>Gap (in)</label>
+                            <input type="number" id="gap" value="2" oninput="draw()">
+                        </div>
+                        <div class="input-col">
+                            <label>Ext. Color</label>
+                            <input type="color" id="extColor" value="#ffffff" oninput="draw()">
+                        </div>
+                    </div>
+                    <label>Shape</label>
+                    <select id="shape" onchange="draw()">
+                        <option value="rect">Rectangle</option>
+                        <option value="arch-top">Arch (Top Only)</option>
+                        <option value="arch-bottom">Arch (Bottom Only)</option>
+                        <option value="circle">Circle</option>
+                    </select>
+                </div>
+
+                <div class="sidebar-footer">
+                    <button class="btn-download" onclick="downloadPreview()">⬇️ Download HD Preview</button>
+                </div>
+            </aside>
+
+            <main class="main-content">
+                <div class="canvas-viewport">
+                    <canvas id="mainCanvas"></canvas>
+                </div>
+            </main>
         </div>
     </div>
 
     <script>
-        // --- PASTE KEYS HERE ---
+        // --- 1. FIREBASE SETUP ---
+        // PASTE YOUR KEYS HERE CAREFULLY
         const firebaseConfig = {
-            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
-  authDomain: "customise-previews.firebaseapp.com",
-  projectId: "customise-previews",
-  storageBucket: "customise-previews.firebasestorage.app",
-  messagingSenderId: "1073406972228",
-  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+            apiKey: "PASTE_API_KEY",
+            authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+            projectId: "PASTE_PROJECT_ID",
+            storageBucket: "PASTE_PROJECT_ID.appspot.com",
+            messagingSenderId: "PASTE_SENDER_ID",
+            appId: "PASTE_APP_ID"
         };
-        // -----------------------
 
-        // Initialize
+        let db, auth;
         try {
             firebase.initializeApp(firebaseConfig);
-            console.log("Firebase Init Success");
+            db = firebase.firestore();
+            auth = firebase.auth();
         } catch(e) {
-            alert("🔥 Config Error: " + e.message);
+            console.error("Firebase Error", e);
+            document.getElementById('authError').innerText = "Config Error. Check Console.";
         }
 
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        let currentUser = null;
+        let uploadedImg = null;
+        const COST = 4;
 
-        // AUTH STATE LISTENER
+        // --- 2. AUTHENTICATION LOGIC ---
         auth.onAuthStateChanged(user => {
             if (user) {
+                currentUser = user;
                 document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appScreen').style.display = 'block';
-                drawBlank(); // Draw empty canvas
+                document.getElementById('appShell').style.display = 'flex'; // Use flex for layout
+                
+                // Load User Data
+                db.collection('users').doc(user.uid).onSnapshot(doc => {
+                    if(!doc.exists) {
+                        db.collection('users').doc(user.uid).set({ email: user.email, credits: 10 });
+                    } else {
+                        const c = doc.data().credits || 0;
+                        const el = document.getElementById('creditBadge');
+                        el.innerText = `Credits: ${c}`;
+                        el.style.color = c < 4 ? '#dc2626' : '#2563eb';
+                    }
+                });
+                
+                // Initial Draw
+                setTimeout(draw, 100); // Small delay to ensure layout ready
             } else {
+                currentUser = null;
                 document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('appScreen').style.display = 'none';
+                document.getElementById('appShell').style.display = 'none';
             }
         });
 
-        // LOGIN FUNCTION
-        function emailLogin() {
-            const e = document.getElementById('uEmail').value;
-            const p = document.getElementById('uPass').value;
-            if(!e || !p) return alert("Enter email and password");
-
-            document.getElementById('msg').innerText = "Logging in...";
-            
-            auth.signInWithEmailAndPassword(e, p)
-                .catch(err => {
-                    alert("Error: " + err.message);
-                    document.getElementById('msg').innerText = err.message;
-                });
+        function doLogin() {
+            const e = document.getElementById('emailIn').value;
+            const p = document.getElementById('passIn').value;
+            auth.signInWithEmailAndPassword(e, p).catch(err => document.getElementById('authError').innerText = err.message);
         }
 
-        // REGISTER FUNCTION
-        function emailSignup() {
-            const e = document.getElementById('uEmail').value;
-            const p = document.getElementById('uPass').value;
-            if(!e || !p) return alert("Enter email and password to register");
-
-            document.getElementById('msg').innerText = "Creating Account...";
-
-            auth.createUserWithEmailAndPassword(e, p)
-                .then((cred) => {
-                    // Create User DB Entry
-                    db.collection('users').doc(cred.user.uid).set({
-                        email: e,
-                        credits: 10 // Free credits
-                    });
-                    alert("Account Created! You are logged in.");
-                })
-                .catch(err => {
-                    alert("Error: " + err.message);
-                    document.getElementById('msg').innerText = err.message;
-                });
+        function doSignup() {
+            const e = document.getElementById('emailIn').value;
+            const p = document.getElementById('passIn').value;
+            auth.createUserWithEmailAndPassword(e, p).catch(err => document.getElementById('authError').innerText = err.message);
         }
 
-        function logout() { auth.signOut(); }
+        // --- 3. PAYMENT & IMAGE LOGIC ---
+        
+        // File Handler
+        const fileInput = document.getElementById('fileInput');
+        fileInput.addEventListener('click', () => fileInput.value = ''); // Reset to allow re-selection
+        
+        fileInput.addEventListener('change', async (e) => {
+            if(!e.target.files[0]) return;
 
-        // SIMPLE DRAW TEST
-        function drawBlank() {
-            const ctx = document.getElementById('mainCanvas').getContext('2d');
-            ctx.fillStyle = "white"; ctx.fillRect(0,0,300,300);
-            ctx.fillStyle = "black"; ctx.font="20px Arial"; ctx.textAlign="center";
-            ctx.fillText("Ready to Preview", 150, 150);
-        }
+            // 1. ALERT / CONFIRMATION
+            if(!confirm(`Load this image for ${COST} Credits?`)) {
+                e.target.value = ''; // Cancel selection
+                return; 
+            }
 
-        // FILE UPLOAD TEST
-        document.getElementById('fInput').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
+            // 2. DEDUCT CREDITS
+            const success = await deductCredits();
+            if(!success) {
+                e.target.value = '';
+                return;
+            }
+
+            // 3. LOAD IMAGE
             const r = new FileReader();
             r.onload = (evt) => {
                 const img = new Image();
-                img.onload = () => {
-                    const canvas = document.getElementById('mainCanvas');
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, 300, 300);
+                img.onload = () => { 
+                    uploadedImg = img; 
+                    autoColor(img); 
+                    draw(); 
                 };
                 img.src = evt.target.result;
             };
-            r.readAsDataURL(file);
+            r.readAsDataURL(e.target.files[0]);
         });
 
-    </script>
-</body>
-</html>
-        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        .row { display: flex; gap: 10px; margin-bottom: 10px; } .col { flex: 1; }
-        label { display: block; font-size: 11px; font-weight: 700; color: #666; margin-bottom: 4px; text-transform: uppercase; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        // Link Handler
+        async function handleLink() {
+            const url = document.getElementById('linkInput').value;
+            if(!url) return alert("Please enter a link");
 
-        /* UPLOAD BOX */
-        .upload-area { background: #fff8e1; border: 2px dashed #ffb300; padding: 15px; border-radius: 8px; text-align: center; }
-        .or-divider { margin: 10px 0; font-size: 12px; color: #999; font-weight: bold; position: relative; }
-        .or-divider::before, .or-divider::after { content: ""; display: inline-block; width: 30%; height: 1px; background: #ddd; vertical-align: middle; margin: 0 5px; }
+            if(!confirm(`Load Link for ${COST} Credits?`)) return;
 
-        /* CANVAS */
-        .canvas-wrapper { text-align: center; background: #cfd8dc; padding: 10px; border-radius: 8px; overflow: auto; min-height: 400px; display: flex; align-items: center; justify-content: center; }
-        canvas { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 100%; height: auto; }
-    </style>
-</head>
-<body>
+            const success = await deductCredits();
+            if(success) {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => { uploadedImg = img; autoColor(img); draw(); };
+                img.onerror = () => alert("Image blocked by CORS policy. Try uploading instead.");
+                img.src = url;
+            }
+        }
 
-    <div id="loadingOverlay" class="overlay">
-        <div class="spinner"></div>
-        <h3 id="loadingText">Starting App...</h3>
-    </div>
+        async function deductCredits() {
+            const ref = db.collection('users').doc(currentUser.uid);
+            try {
+                await db.runTransaction(async (t) => {
+                    const doc = await t.get(ref);
+                    const creds = doc.data().credits || 0;
+                    if(creds < COST) throw "Low Balance";
+                    t.update(ref, { credits: creds - COST });
+                });
+                return true;
+            } catch(e) {
+                alert("Transaction Failed: " + e);
+                return false;
+            }
+        }
 
-    <div id="loginOverlay" class="overlay" style="display:none;">
-        <div class="login-box">
-            <h2>🔐 Hakimi Tools</h2>
-            <p>Please sign in to access</p>
-            <button class="btn-google" onclick="handleGoogleLogin()">Sign in with Google</button>
-            <p id="errorMsg" style="color:red; font-size:12px; margin-top:15px; display:none;"></p>
-        </div>
-    </div>
+        function autoColor(img) {
+            try {
+                const c = document.createElement('canvas'); c.width=1; c.height=1;
+                c.getContext('2d').drawImage(img,0,0,1,1);
+                const p = c.getContext('2d').getImageData(0,0,1,1).data;
+                const hex = "#" + ((1 << 24) + (p[0] << 16) + (p[1] << 8) + p[2]).toString(16).slice(1);
+                document.getElementById('extColor').value = hex;
+            } catch(e) {}
+        }
 
-    <div id="appContainer">
-        
-        <div class="header">
-            <strong>Hakimi Preview</strong>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span id="creditDisplay" class="credit-badge">Credits: ...</span>
-                <button onclick="auth.signOut()" style="border:none; background:none; color:#c62828; font-weight:bold; font-size:12px;">LOGOUT</button>
-            </div>
-        </div>
+        // --- 4. DRAWING ENGINE (FIXED TEXT & LOGIC) ---
+        function draw() {
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d');
 
-        <div class="card">
-            <label>📷 Select Image (Cost: 5 Credits)</label>
-            <div class="upload-area">
-                <input type="file" id="fileIn" accept="image/*" style="width:100%">
+            const totalW = parseFloat(document.getElementById('totalW').value) || 100;
+            const totalH = parseFloat(document.getElementById('totalH').value) || 100;
+            const gap = parseFloat(document.getElementById('gap').value) || 0;
+            const extColor = document.getElementById('extColor').value;
+            const shape = document.getElementById('shape').value;
+
+            // Parse Grids
+            const sW = document.getElementById('splitW').value;
+            const sH = document.getElementById('splitH').value;
+            const cols = sW.trim() ? sW.split(',').map(n=>parseFloat(n)).filter(n=>n>0) : [totalW];
+            const rows = sH.trim() ? sH.split(',').map(n=>parseFloat(n)).filter(n=>n>0) : [totalH];
+
+            // Canvas Dimensions (High PPI for Quality)
+            const PPI = 10;
+            const gridW = cols.reduce((a,b)=>a+b,0);
+            const gridH = rows.reduce((a,b)=>a+b,0);
+            const visW = gridW + ((cols.length-1)*gap);
+            const visH = gridH + ((rows.length-1)*gap);
+
+            // Add Padding for Labels (100px all around)
+            const PADDING = 100;
+            canvas.width = (visW * PPI) + (PADDING * 2);
+            canvas.height = (visH * PPI) + (PADDING * 2);
+
+            // Fill Background
+            ctx.fillStyle = "white"; 
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+
+            // Draw Offsets
+            const startX = PADDING;
+            const startY = PADDING;
+            const gapPx = gap * PPI;
+
+            let curY = startY;
+            let accumH = 0;
+
+            rows.forEach((hVal, rI) => {
+                let curX = startX;
+                let accumW = 0;
                 
-                <div class="or-divider">OR PASTE LINK</div>
-                
-                <div style="display:flex; gap:5px;">
-                    <input type="text" id="linkIn" placeholder="https://..." style="font-size:12px;">
-                    <button class="btn-go" onclick="loadLink()">GO</button>
-                </div>
-            </div>
-        </div>
+                // Row Shape Logic
+                let curShape = 'rect';
+                if(shape === 'circle') curShape = 'circle';
+                else if(shape === 'arch-top' && rI === 0) curShape = 'arch-top';
+                else if(shape === 'arch-bottom' && rI === rows.length-1) curShape = 'arch-bottom';
 
-        <div class="card">
-            <div class="row">
-                <div class="col"><label>Ext. Color</label><input type="color" id="extColor" value="#ffffff" style="height:40px" oninput="draw()"></div>
+                cols.forEach((wVal, cI) => {
+                    const dW = wVal * PPI;
+                    const dH = hVal * PPI;
+
+                    ctx.save();
+                    
+                    // --- PATH DEFINITION ---
+                    ctx.beginPath();
+                    definePath(ctx, curX, curY, dW, dH, curShape, PPI);
+                    ctx.clip(); // Start Clip
+
+                    // --- FILL COLOR ---
+                    ctx.fillStyle = extColor;
+                    ctx.fill();
+
+                    // --- DRAW IMAGE ---
+                    if(uploadedImg) {
+                        const pW = totalW * PPI;
+                        const pH = totalH * PPI;
+                        const orgX = curX - (accumW * PPI);
+                        const orgY = curY - (accumH * PPI);
+
+                        ctx.save();
+                        // Inner Clip: To Primary Dimensions
+                        ctx.beginPath(); ctx.rect(orgX, orgY, pW, pH); ctx.clip();
+                        ctx.drawImage(uploadedImg, orgX, orgY, pW, pH);
+                        ctx.restore();
+                    }
+                    ctx.restore(); // End Clip
+
+                    // --- STROKE ---
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = "#333";
+                    ctx.beginPath();
+                    definePath(ctx, curX, curY, dW, dH, curShape, PPI);
+                    ctx.stroke();
+
+                    // --- DIMENSION TEXT (FIXED) ---
+                    ctx.fillStyle = "#000";
+                    ctx.font = "bold 24px sans-serif"; // Bigger font
+                    ctx.textAl>Ext. Color</label><input type="color" id="extColor" value="#ffffff" style="height:40px" oninput="draw()"></div>
                 <div class="col"><label>Gap (in)</label><input type="number" id="inpGap" value="2" oninput="draw()"></div>
             </div>
 
@@ -268,12 +476,12 @@
     <script>
         // --- 1. FIREBASE CONFIG (PASTE KEYS HERE) ---
         const firebaseConfig = {
-            apiKey: "PASTE_API_KEY",
-            authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-            projectId: "PASTE_PROJECT_ID",
-            storageBucket: "PASTE_PROJECT_ID.appspot.com",
-            messagingSenderId: "PASTE_SENDER_ID",
-            appId: "PASTE_APP_ID"
+            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+  authDomain: "customise-previews.firebaseapp.com",
+  projectId: "customise-previews",
+  storageBucket: "customise-previews.firebasestorage.app",
+  messagingSenderId: "1073406972228",
+  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
         };
         // --------------------------------------------
 
