@@ -1,19 +1,17 @@
 // app.js
 console.log("2. Loading App Logic...");
 
-// --- GLOBAL VARIABLES ---
+// GLOBAL VARIABLES
 let currentUser = null;
 let currentImg = null;
 let tempSrc = null;
 
 // --- 1. AUTHENTICATION ---
-
-// Listen for Auth State Changes
 if (window.auth) {
     window.auth.onAuthStateChanged((user) => {
         if (user) {
             currentUser = user;
-            toggleViews(true); // Show App
+            toggleViews(true);
             
             // Sync Credits
             window.db.collection('users').doc(user.uid).onSnapshot((doc) => {
@@ -21,7 +19,8 @@ if (window.auth) {
                     window.db.collection('users').doc(user.uid).set({ email: user.email, credits: 10 });
                 } else {
                     const c = doc.data().credits || 0;
-                    document.getElementById('credit-badge').innerText = c + " Credits";
+                    const badge = document.getElementById('credit-badge');
+                    if(badge) badge.innerText = c + " Credits";
                 }
             });
             
@@ -29,44 +28,36 @@ if (window.auth) {
             setTimeout(window.draw, 500);
         } else {
             currentUser = null;
-            toggleViews(false); // Show Login
+            toggleViews(false);
         }
     });
-} else {
-    console.error("Auth not found. Check config.js");
 }
 
 function toggleViews(isLoggedIn) {
+    const loginView = document.getElementById('login-view');
+    const appView = document.getElementById('app-view');
+    
     if (isLoggedIn) {
-        document.getElementById('login-view').style.display = 'none';
-        document.getElementById('app-view').style.display = 'flex';
+        if(loginView) loginView.style.display = 'none';
+        if(appView) appView.style.display = 'flex';
     } else {
-        document.getElementById('login-view').style.display = 'flex';
-        document.getElementById('app-view').style.display = 'none';
+        if(loginView) loginView.style.display = 'flex';
+        if(appView) appView.style.display = 'none';
     }
 }
 
-// Global Login Function
+// Global Auth Functions
 window.handleLogin = function(e) {
     e.preventDefault();
     const em = document.getElementById('email').value;
     const pw = document.getElementById('pass').value;
-    const log = document.getElementById('auth-log');
-    
-    log.innerText = "Signing in...";
-    window.auth.signInWithEmailAndPassword(em, pw).catch(err => log.innerText = err.message);
+    window.auth.signInWithEmailAndPassword(em, pw).catch(err => alert(err.message));
 };
 
-// Global Signup Function
 window.handleSignup = function() {
     const em = document.getElementById('email').value;
     const pw = document.getElementById('pass').value;
-    const log = document.getElementById('auth-log');
-    
-    if(!em || !pw) return alert("Enter email and password");
-    
-    log.innerText = "Creating account...";
-    window.auth.createUserWithEmailAndPassword(em, pw).catch(err => log.innerText = err.message);
+    window.auth.createUserWithEmailAndPassword(em, pw).catch(err => alert(err.message));
 };
 
 window.handleLogout = function() {
@@ -75,8 +66,6 @@ window.handleLogout = function() {
 
 
 // --- 2. IMAGE LOGIC ---
-
-// File Input Listener
 const fInput = document.getElementById('file-in');
 if(fInput) {
     fInput.addEventListener('change', (e) => {
@@ -84,7 +73,8 @@ if(fInput) {
             const r = new FileReader();
             r.onload = (evt) => { 
                 tempSrc = evt.target.result; 
-                document.getElementById('modal').style.display = 'flex'; 
+                const modal = document.getElementById('modal');
+                if(modal) modal.style.display = 'flex'; 
             };
             r.readAsDataURL(e.target.files[0]);
             e.target.value = ''; 
@@ -96,7 +86,8 @@ window.handleLink = function() {
     const url = document.getElementById('link-in').value;
     if (url) {
         tempSrc = url;
-        document.getElementById('modal').style.display = 'flex';
+        const modal = document.getElementById('modal');
+        if(modal) modal.style.display = 'flex';
     }
 };
 
@@ -106,7 +97,7 @@ window.closeModal = async function(shouldPay) {
     if (shouldPay && tempSrc) {
         const ref = window.db.collection('users').doc(currentUser.uid);
         try {
-            // Deduct
+            // Deduct Credits
             await window.db.runTransaction(async (t) => {
                 const doc = await t.get(ref);
                 const c = doc.data().credits || 0;
@@ -114,7 +105,7 @@ window.closeModal = async function(shouldPay) {
                 t.update(ref, { credits: c - 4 });
             });
             
-            // Load
+            // Load Image
             const img = new Image();
             img.onload = () => {
                 currentImg = img;
@@ -132,13 +123,11 @@ window.closeModal = async function(shouldPay) {
 
 
 // --- 3. DRAWING ENGINE ---
-
 window.draw = function() {
     const cvs = document.getElementById('cvs');
     if(!cvs) return;
     const ctx = cvs.getContext('2d');
     
-    // Helpers
     const getVal = (id) => {
         const el = document.getElementById(id);
         return parseFloat(el.value || el.placeholder) || 0;
@@ -150,17 +139,14 @@ window.draw = function() {
     const clr = document.getElementById('clr').value;
     const shp = document.getElementById('shp').value;
     
-    // Parse Lists
     const sW_txt = document.getElementById('sW').value || "55, 55";
     const sH_txt = document.getElementById('sH').value || "90";
     
     const cols = sW_txt.split(',').map(Number).filter(n=>n>0);
     const rows = sH_txt.split(',').map(Number).filter(n=>n>0);
-    
     const fCols = cols.length ? cols : [tW];
     const fRows = rows.length ? rows : [tH];
     
-    // Config
     const PPI = 5;
     const P = 20;
     
@@ -173,7 +159,6 @@ window.draw = function() {
     cvs.width = (vW*PPI) + (P*2);
     cvs.height = (vH*PPI) + (P*2);
     
-    // Draw
     ctx.fillStyle = "white"; 
     ctx.fillRect(0,0,cvs.width, cvs.height);
     
@@ -181,9 +166,8 @@ window.draw = function() {
     
     fRows.forEach((h, rI) => {
         let cX = P;
-        let accW = 0; // Accumulated Width for image mapping
+        let accW = 0;
         
-        // Shape logic
         let rShp = 'rect';
         if(shp === 'circle') rShp = 'circle';
         if(shp === 'arch-top' && rI === 0) rShp = 'arch-top';
@@ -194,36 +178,27 @@ window.draw = function() {
             const dH = h*PPI;
             
             ctx.save();
-            
-            // Path
             ctx.beginPath();
             trace(ctx, cX, cY, dW, dH, rShp, PPI);
             ctx.clip();
             
-            // Fill
             ctx.fillStyle = clr; 
             ctx.fill();
             
-            // Image (Simple Mapping)
             if(currentImg) {
-                // Draw image to cover the FULL grid area, but offset for this cell
-                // Offset = Current X minus Accumulated Width
-                // This aligns the image seamlessly across cells
                 const offX = cX - (accW*PPI); 
-                // Note: Vertical alignment is simplified here for stability
+                // Draw image across the full grid logic
                 ctx.drawImage(currentImg, offX, P, tW*PPI, tH*PPI); 
             }
             
             ctx.restore();
             
-            // Stroke
             ctx.lineWidth = 2; 
             ctx.strokeStyle = "#333";
             ctx.beginPath();
             trace(ctx, cX, cY, dW, dH, rShp, PPI);
             ctx.stroke();
             
-            // Text
             ctx.fillStyle = "black"; 
             ctx.font = "12px Arial"; 
             ctx.textAlign = "center";
@@ -262,54 +237,7 @@ window.download = function() {
     a.href = document.getElementById('cvs').toDataURL();
     a.click();
 };
-
-    // Make functions global so HTML can see them
-    window.handleLogin = function(e) {
-        e.preventDefault();
-        const em = document.getElementById('email').value;
-        const pw = document.getElementById('pass').value;
-        document.getElementById('log').innerText = "Logging in...";
-        window.auth.signInWithEmailAndPassword(em, pw).catch(err => document.getElementById('log').innerText = err.message);
-    };
-
-    window.handleSignup = function() {
-        const em = document.getElementById('email').value;
-        const pw = document.getElementById('pass').value;
-        if(!em || !pw) return alert("Enter email & password");
-        document.getElementById('log').innerText = "Creating account...";
-        window.auth.createUserWithEmailAndPassword(em, pw).catch(err => document.getElementById('log').innerText = err.message);
-    };
-
-    window.handleLogout = function() {
-        window.auth.signOut();
-    };
-
-    // --- IMAGE ---
-    document.getElementById('file-in').addEventListener('change', e => {
-        if (e.target.files[0]) {
-            const r = new FileReader();
-            r.onload = evt => { 
-                tempSrc = evt.target.result; 
-                document.getElementById('modal').style.display = 'flex'; 
-            };
-            r.readAsDataURL(e.target.files[0]);
-            e.target.value = ''; 
-        }
-    });
-
-    window.closeModal = async function(pay) {
-        document.getElementById('modal').style.display = 'none';
-        if(pay && tempSrc) {
-            const ref = window.db.collection('users').doc(currentUser.uid);
-            try {
-                await window.db.runTransaction(async t => {
-                    const d = await t.get(ref);
-                    const c = d.data().credits || 0;
-                    if(c < 4) throw "Low Balance";
-                    t.update(ref, { credits: c - 4 });
-                });
-                const i = new Image();
-                i.onload = () => { currentImg = i; draw(); };
+i; draw(); };
                 i.src = tempSrc;
             } catch(e) { alert(e); }
         }
