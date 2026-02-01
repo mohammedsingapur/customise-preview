@@ -3,72 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro | Google Login</title>
+    <title>Hakimi Pro v18.0</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
     <style>
-        /* CSS RESET */
+        /* BASE STYLES */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eee; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-        /* DEBUG BAR */
-        #status-bar { background: #333; color: white; font-size: 11px; padding: 5px; text-align: center; display: none; }
 
         /* LOGIN SCREEN */
         #login-view { position: fixed; inset: 0; z-index: 50; background: white; display: flex; justify-content: center; align-items: center; }
         .auth-box { width: 300px; padding: 30px; text-align: center; }
-        
-        /* GOOGLE BTN */
         .btn-google {
             width: 100%; padding: 12px; background: #4285F4; color: white; 
             border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px;
             display: flex; align-items: center; justify-content: center; gap: 10px;
         }
-        .btn-google:hover { background: #357ae8; }
 
-        /* APP LAYOUT */
+        /* MAIN APP */
         #app-view { display: none; width: 100%; height: 100%; flex-direction: column; }
         
-        aside { background: white; padding: 15px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 10px; max-height: 40vh; overflow-y: auto; }
+        aside { background: white; padding: 15px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow-y: auto; z-index: 10; }
         @media (min-width: 768px) {
             #app-view { flex-direction: row; }
             aside { width: 320px; border-right: 1px solid #ccc; border-bottom: none; max-height: 100vh; }
         }
 
         main { flex: 1; background: #e5e5e5; display: flex; justify-content: center; align-items: flex-start; padding: 20px; overflow: auto; }
-        canvas { background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 100%; }
+        
+        canvas { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-width: 100%; height: auto; }
+
+        /* MODAL (THE POPUP) */
+        #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal-box { background: white; width: 90%; max-width: 350px; padding: 20px; border-radius: 10px; text-align: center; }
+        .modal-img { max-width: 100%; height: 200px; object-fit: contain; margin: 15px 0; border: 1px solid #eee; background: #f9f9f9; }
 
         /* CONTROLS */
         .row { display: flex; gap: 10px; }
-        .btn-upload { border: 2px dashed #ccc; padding: 15px; text-align: center; color: #666; font-weight: bold; cursor: pointer; display: block; border-radius: 6px; }
-        input[type="text"], input[type="number"], select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-upload { border: 2px dashed #999; padding: 12px; text-align: center; color: #555; font-weight: 600; cursor: pointer; display: block; border-radius: 6px; background: #f9f9f9; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        
         .btn-black { width: 100%; padding: 12px; background: black; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-go { background: #333; color: white; border: none; border-radius: 4px; padding: 0 15px; cursor: pointer; font-weight: bold; }
+        .btn-logout { background: none; border: none; color: red; font-size: 12px; cursor: pointer; margin-top: 5px; text-decoration: underline; }
+        
+        /* MODAL BUTTONS */
+        .btn-cancel { flex: 1; padding: 12px; border: none; background: #eee; color: #333; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .btn-confirm { flex: 1; padding: 12px; border: none; background: #2563eb; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="status-bar"></div>
-
     <div id="login-view">
         <div class="auth-box">
             <h2 style="margin-top:0;">Hakimi Pro</h2>
-            <p style="color:#666; margin-bottom:30px;">Login to access tools</p>
-            
-            <button class="btn-google" onclick="googleLogin()">
-                <span>🔵</span> Sign in with Google
-            </button>
+            <p style="color:#666; margin-bottom:30px;">v18.0 Visual Edition</p>
+            <button class="btn-google" onclick="googleLogin()"><span>🔵</span> Sign in with Google</button>
             <p id="login-msg" style="color:red; font-size:12px; margin-top:20px;"></p>
         </div>
     </div>
 
     <div id="app-view">
         <aside>
-            <div style="display:flex; justify-content:space-between;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
                 <strong>Hakimi Tools</strong>
-                <span id="credit-display" style="color:blue;">...</span>
+                <span id="credit-display" style="color:blue; font-weight:bold;">...</span>
             </div>
 
             <input type="file" id="fInput" hidden>
@@ -76,17 +78,27 @@
                 📁 Upload Image (4 Credits)
             </div>
 
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="lInput" placeholder="Or Paste Image Link...">
+                <button class="btn-go" onclick="loadLink()">GO</button>
+            </div>
+
+            <hr style="width:100%; border:0; border-top:1px solid #eee; margin:5px 0;">
+
+            <label style="font-size:11px; font-weight:bold; color:#666; margin-bottom:-5px;">DIMENSIONS</label>
             <div class="row">
-                <input id="sW" placeholder="Widths (55, 55)" oninput="draw()">
+                <input id="sW" placeholder="Split W (55, 55)" oninput="draw()">
                 <input id="sH" placeholder="Heights (90)" oninput="draw()">
             </div>
             <div class="row">
                 <input id="tW" placeholder="Total W (110)" oninput="draw()">
                 <input id="tH" placeholder="Total H (90)" oninput="draw()">
             </div>
+
+            <label style="font-size:11px; font-weight:bold; color:#666; margin-bottom:-5px;">STYLE</label>
             <div class="row">
                 <input id="gap" placeholder="Gap (2)" oninput="draw()">
-                <input type="color" id="clr" value="#ffffff" oninput="draw()" style="height:35px;">
+                <input type="color" id="clr" value="#ffffff" oninput="draw()" style="height:38px;">
             </div>
             <select id="shp" onchange="draw()">
                 <option value="rect">Rectangle</option>
@@ -96,7 +108,7 @@
             </select>
 
             <button class="btn-black" onclick="downloadCanvas()">Download Preview</button>
-            <button onclick="auth.signOut()" style="background:none; border:none; color:red; cursor:pointer; margin-top:10px;">Logout</button>
+            <button class="btn-logout" onclick="auth.signOut()">Logout</button>
         </aside>
 
         <main>
@@ -104,8 +116,22 @@
         </main>
     </div>
 
+    <div id="modal">
+        <div class="modal-box">
+            <h3 style="margin-top:0;">Confirm Image</h3>
+            <img id="modal-img" class="modal-img">
+            <p>Cost: <b style="color:#dc2626">4 Credits</b></p>
+            <div class="row">
+                <button class="btn-cancel" onclick="closeModal(false)">Cancel</button>
+                <button class="btn-confirm" onclick="closeModal(true)">Pay & Load</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // --- 1. PASTE KEYS HERE ---
+        // ----------------------------------------------------
+        // 1. CONFIGURATION (PASTE KEYS HERE)
+        // ----------------------------------------------------
         var firebaseConfig = {
             apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
   authDomain: "customise-previews.firebaseapp.com",
@@ -114,23 +140,18 @@
   messagingSenderId: "1073406972228",
   appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
         };
-        // --------------------------
+        // ----------------------------------------------------
 
-        // GLOBAL VARS
-        var db, auth, currentUser, currentImg;
+        var db, auth, currentUser, currentImg, tempSrc;
 
-        // INIT FIREBASE
+        // INIT
         try {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             auth = firebase.auth();
-        } catch (e) {
-            alert("Config Error: " + e.message);
-        }
+        } catch (e) { alert("Config Error: " + e.message); }
 
-        // AUTH LISTENER
+        // AUTH & LOGIN
         if (auth) {
             auth.onAuthStateChanged(function(user) {
                 if (user) {
@@ -138,14 +159,9 @@
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('app-view').style.display = 'flex';
                     
-                    // Sync Credits
                     db.collection('users').doc(user.uid).onSnapshot(function(doc) {
-                        if (!doc.exists) {
-                            db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
-                        } else {
-                            var c = doc.data().credits || 0;
-                            document.getElementById('credit-display').innerText = c + " Credits";
-                        }
+                        if (!doc.exists) db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
+                        else document.getElementById('credit-display').innerText = (doc.data().credits || 0) + " Credits";
                     });
                     setTimeout(draw, 500);
                 } else {
@@ -155,74 +171,210 @@
             });
         }
 
-        // GOOGLE LOGIN FUNCTION
         function googleLogin() {
             var provider = new firebase.auth.GoogleAuthProvider();
             document.getElementById('login-msg').innerText = "Opening popup...";
-            
             auth.signInWithPopup(provider).catch(function(error) {
                 document.getElementById('login-msg').innerText = error.message;
-                console.error(error);
             });
         }
 
-        // IMAGE LOGIC
+        // --- IMAGE LOGIC (VISUAL MODAL) ---
+        
+        // 1. File Upload
         document.getElementById('fInput').addEventListener('change', function(e) {
             if (e.target.files[0]) {
-                if(!confirm("Spend 4 Credits to load?")) return;
+                var reader = new FileReader();
+                reader.onload = function(evt) { openModal(evt.target.result); };
+                reader.readAsDataURL(e.target.files[0]);
+                e.target.value = ''; // Reset
+            }
+        });
 
+        // 2. Link Load
+        function loadLink() {
+            var url = document.getElementById('lInput').value;
+            if(url) openModal(url);
+        }
+
+        // 3. Show Modal
+        function openModal(src) {
+            tempSrc = src;
+            document.getElementById('modal-img').src = src;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        // 4. Handle Modal Choice
+        function closeModal(shouldPay) {
+            document.getElementById('modal').style.display = 'none';
+
+            if (shouldPay && tempSrc) {
+                // START TRANSACTION
                 var ref = db.collection('users').doc(currentUser.uid);
                 
                 db.runTransaction(function(t) {
                     return t.get(ref).then(function(doc) {
                         var c = doc.data().credits || 0;
-                        if (c < 4) throw "Insufficient Credits";
+                        if (c < 4) throw "Low Balance";
                         t.update(ref, { credits: c - 4 });
                     });
                 }).then(function() {
-                    var r = new FileReader();
-                    r.onload = function(evt) {
-                        var img = new Image();
-                        img.onload = function() {
-                            currentImg = img;
-                            // Safe Auto Color
-                            try {
-                                var c = document.createElement('canvas'); c.width=1; c.height=1;
-                                c.getContext('2d').drawImage(img,0,0,1,1);
-                                var p = c.getContext('2d').getImageData(0,0,1,1).data;
-                                var hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
-                                document.getElementById('clr').value = hex;
-                            } catch(e){}
-                            draw();
-                        };
-                        img.src = evt.target.result;
+                    // SUCCESS -> LOAD IMAGE
+                    var img = new Image();
+                    img.onload = function() {
+                        currentImg = img;
+                        tryColor(tempSrc); // Safe color detect
+                        draw();
                     };
-                    r.readAsDataURL(e.target.files[0]);
+                    img.onerror = function() { alert("Failed to load image link."); };
+                    img.src = tempSrc;
                 }).catch(function(err) {
                     alert("Error: " + err);
                 });
             }
-        });
+            // If canceled, clear temp
+            if (!shouldPay) tempSrc = null;
+        }
 
-        // DRAW ENGINE
+        function tryColor(src) {
+            var i = new Image();
+            i.crossOrigin = "Anonymous"; 
+            i.onload = function() {
+                try {
+                    var c = document.createElement('canvas'); c.width=1; c.height=1;
+                    c.getContext('2d').drawImage(i,0,0,1,1);
+                    var p = c.getContext('2d').getImageData(0,0,1,1).data;
+                    var hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
+                    document.getElementById('clr').value = hex;
+                    draw();
+                } catch(e){}
+            };
+            i.src = src;
+        }
+
+        // DRAWING ENGINE (HD Version)
         function getV(id) {
             var el = document.getElementById(id);
-            return parseFloat(el.value || el.placeholder) || 0;
+            var val = el.value.trim();
+            if(!val) val = el.placeholder;
+            if(id === 'sW' && val.includes('Width')) val = "55, 55"; 
+            if(id === 'sH' && val.includes('Height')) val = "90";
+            return val;
         }
 
         function draw() {
             var cvs = document.getElementById('cvs');
             var ctx = cvs.getContext('2d');
             
-            var tW = getV('tW'), tH = getV('tH'), gap = getV('gap');
+            var sW_raw = getV('sW');
+            var sH_raw = getV('sH');
+            var tW = parseFloat(getV('tW')) || 110;
+            var tH = parseFloat(getV('tH')) || 90;
+            var gap = parseFloat(getV('gap')) || 2;
             var clr = document.getElementById('clr').value;
             var shp = document.getElementById('shp').value;
 
-            var sW_txt = document.getElementById('sW').value || "55, 55";
-            var sH_txt = document.getElementById('sH').value || "90";
+            var cols = sW_raw.split(',').map(Number).filter(function(n){ return n>0 });
+            var rows = sH_raw.split(',').map(Number).filter(function(n){ return n>0 });
             
-            var cols = sW_txt.split(',').map(Number).filter(function(n){ return n>0 });
-            var rows = sH_txt.split(',').map(Number).filter(function(n){ return n>0 });
+            var fCols = cols.length ? cols : [tW];
+            var fRows = rows.length ? rows : [tH];
+            
+            var PPI = 10; 
+            var P = 40;
+            
+            var gW = fCols.reduce(function(a,b){ return a+b }, 0);
+            var gH = fRows.reduce(function(a,b){ return a+b }, 0);
+            
+            var vW = gW + ((fCols.length-1)*gap);
+            var vH = gH + ((fRows.length-1)*gap);
+            
+            cvs.width = (vW*PPI) + (P*2);
+            cvs.height = (vH*PPI) + (P*2);
+
+            ctx.fillStyle = "white"; 
+            ctx.fillRect(0,0,cvs.width, cvs.height);
+            
+            var cY = P;
+            var accH = 0;
+
+            fRows.forEach(function(h, rI) {
+                var cX = P; 
+                var accW = 0;
+                
+                var rShp = shp;
+                if(shp.includes('arch')) {
+                    if(shp==='arch-top' && rI!==0) rShp='rect';
+                    if(shp==='arch-bottom' && rI!==fRows.length-1) rShp='rect';
+                }
+
+                fCols.forEach(function(w, cI) {
+                    var dW = w*PPI; 
+                    var dH = h*PPI;
+                    
+                    ctx.save();
+                    
+                    ctx.beginPath(); 
+                    trace(ctx, cX, cY, dW, dH, rShp, PPI); 
+                    ctx.clip();
+                    
+                    ctx.fillStyle = clr; 
+                    ctx.fill();
+                    
+                    if(currentImg) {
+                        ctx.drawImage(currentImg, P-(accW*PPI), P-(accH*PPI), (tW*PPI), (tH*PPI)); 
+                    }
+                    ctx.restore();
+                    
+                    ctx.lineWidth = 3; 
+                    ctx.strokeStyle = "#333";
+                    ctx.beginPath(); 
+                    trace(ctx, cX, cY, dW, dH, rShp, PPI); 
+                    ctx.stroke();
+                    
+                    ctx.fillStyle="black"; 
+                    ctx.font="bold 24px Arial"; 
+                    ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+30);
+                    
+                    ctx.save(); 
+                    ctx.translate(cX-15, cY+dH/2); 
+                    ctx.rotate(-Math.PI/2);
+                    ctx.fillText(h+'"', 0, 0); 
+                    ctx.restore();
+
+                    cX += dW + (gap*PPI); 
+                    accW += w;
+                });
+                cY += (h*PPI) + (gap*PPI);
+                accH += h;
+            });
+        }
+
+        function trace(ctx, x, y, w, h, t, p) {
+            var d = Math.min(h, 10*p);
+            if(t==='rect') ctx.rect(x,y,w,h);
+            else if(t==='circle') ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, 2*Math.PI);
+            else if(t==='arch-top') {
+                ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); 
+                ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); ctx.lineTo(x+w,y+h);
+            } else if(t==='arch-bottom') {
+                ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h-d);
+                ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); ctx.lineTo(x,y);
+            }
+            ctx.closePath();
+        }
+
+        function downloadCanvas() {
+            var a = document.createElement('a');
+            a.download = 'hakimi-preview.png';
+            a.href = document.getElementById('cvs').toDataURL();
+            a.click();
+        }
+    </script>
+</body>
+</html>
+ var rows = sH_txt.split(',').map(Number).filter(function(n){ return n>0 });
             
             var fCols = cols.length ? cols : [tW];
             var fRows = rows.length ? rows : [tH];
