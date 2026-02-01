@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hakimi Final v6.0</title>
+    <title>Hakimi Debug v6.1</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -14,26 +14,354 @@
         :root { --primary: #2563eb; --danger: #dc2626; --bg: #f3f4f6; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* --- CUSTOM MODALS --- */
-        .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200;
-            display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
-        }
-        .modal-box { background: white; width: 90%; max-width: 400px; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .modal-img { max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #ddd; margin: 15px 0; object-fit: contain; }
-        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
-        .btn-modal { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-confirm { background: var(--primary); color: white; }
-        .btn-cancel { background: #e5e7eb; color: #374151; }
-
-        /* --- LOGIN SCREEN --- */
+        /* MODAL & LOGIN STYLES */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal-box { background: white; width: 90%; max-width: 400px; padding: 25px; border-radius: 12px; text-align: center; }
+        .modal-img { max-width: 100%; max-height: 200px; border-radius: 8px; margin: 15px 0; object-fit: contain; }
+        
         #loginScreen { position: fixed; inset: 0; background: white; z-index: 100; display: flex; align-items: center; justify-content: center; }
         .login-card { width: 300px; text-align: center; }
         .inp-auth { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
         .btn-auth { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-        /* --- APP LAYOUT --- */
+        /* APP LAYOUT */
         #appShell { display: none; height: 100%; }
+        .sidebar { width: 320px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar-content { padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .main-view { flex: 1; background: #e5e5e5; padding: 40px; overflow: auto; display: flex; align-items: center; justify-content: center; }
+        
+        label { display: block; font-size: 0.75rem; font-weight: 700; color: #6b7280; margin-bottom: 5px; text-transform: uppercase; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; }
+        
+        .btn-upload { background: #fff7ed; border: 2px dashed #f97316; color: #c2410c; padding: 15px; border-radius: 8px; cursor: pointer; text-align: center; font-weight: 600; display: block; }
+        .btn-download { width: 100%; padding: 15px; background: #16a34a; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-top: 20px;}
+        canvas { background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.2); max-width: 100%; height: auto; }
+
+        @media (max-width: 768px) { #appShell { flex-direction: column; } .sidebar { width: 100%; height: auto; border-bottom: 1px solid #ddd; } }
+    </style>
+</head>
+<body>
+
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Confirm Selection</h3>
+            <img id="previewImg" class="modal-img" src="">
+            <p>Cost: <strong style="color:var(--danger)">4 Credits</strong></p>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="closeModal(false)" style="flex:1; padding:12px; border:none; border-radius:6px;">Cancel</button>
+                <button onclick="closeModal(true)" style="flex:1; padding:12px; border:none; border-radius:6px; background:var(--primary); color:white; font-weight:bold;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loginScreen">
+        <div class="login-card">
+            <h2>Hakimi Debug v6.1</h2>
+            <input type="email" id="uEmail" class="inp-auth" placeholder="Email">
+            <input type="password" id="uPass" class="inp-auth" placeholder="Password">
+            
+            <button class="btn-auth" onclick="authLogin()">Login</button>
+            <button class="btn-auth" onclick="authSignup()" style="background:#4b5563">Create Account</button>
+            
+            <p id="authMsg" style="color:red; font-size:0.8rem; margin-top:10px;"></p>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <aside class="sidebar">
+            <div style="padding:20px; border-bottom:1px solid #eee;">
+                <strong>📐 Hakimi Preview</strong>
+                <div style="font-size:0.85rem; color:var(--primary); margin-top:5px;">
+                    <span id="cDisplay">Credits: ...</span>
+                    <a onclick="auth.signOut()" style="margin-left:10px; color:red; cursor:pointer;">Logout</a>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <div>
+                    <label>1. Source Image</label>
+                    <input type="file" id="fInput" accept="image/*" style="display:none">
+                    <label for="fInput" class="btn-upload">Click to Upload File</label>
+                    <div style="text-align:center; margin:10px 0; font-size:0.8rem;">- OR -</div>
+                    <div style="display:flex; gap:5px;">
+                        <input type="text" id="lInput" placeholder="Paste Image Link...">
+                        <button onclick="handleLink()" style="background:#333; color:white; border:none; padding:0 12px; border-radius:4px;">GO</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label>2. Dimensions</label>
+                    <label style="font-size:0.7rem;">Split Widths</label>
+                    <input type="text" id="sW" placeholder="55, 55" oninput="draw()">
+                    <label style="font-size:0.7rem; margin-top:5px;">Split Heights</label>
+                    <input type="text" id="sH" placeholder="90" oninput="draw()">
+                </div>
+
+                <div>
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1"><label>Total W</label><input type="number" id="tW" placeholder="110" oninput="draw()"></div>
+                        <div style="flex:1"><label>Total H</label><input type="number" id="tH" placeholder="90" oninput="draw()"></div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <div style="flex:1"><label>Ext. Color</label><input type="color" id="clr" value="#ffffff" style="height:38px;" oninput="draw()"></div>
+                        <div style="flex:1"><label>Gap</label><input type="number" id="gap" placeholder="2" oninput="draw()"></div>
+                    </div>
+                    <label style="margin-top:10px;">Shape</label>
+                    <select id="shp" onchange="draw()">
+                        <option value="rect">Rectangle</option>
+                        <option value="arch-top">Arch Top</option>
+                        <option value="arch-bottom">Arch Bottom</option>
+                        <option value="circle">Circle</option>
+                    </select>
+                </div>
+                <button class="btn-download" onclick="downloadImg()">⬇️ Download Image</button>
+            </div>
+        </aside>
+
+        <main class="main-view">
+            <canvas id="cvs"></canvas>
+        </main>
+    </div>
+
+    <script>
+        // --- 1. FIREBASE CONFIG ---
+        // REPLACE THE LINES BELOW WITH YOUR KEYS
+        const firebaseConfig = {
+            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+  authDomain: "customise-previews.firebaseapp.com",
+  projectId: "customise-previews",
+  storageBucket: "customise-previews.firebasestorage.app",
+  messagingSenderId: "1073406972228",
+  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+        };
+        // --------------------------
+
+        let db, auth, currentUser, tempImg = null, currentImg = null;
+
+        // SYSTEM CHECK
+        try {
+            if(firebaseConfig.apiKey.includes("PASTE")) {
+                alert("❌ ERROR: You forgot to paste your Firebase Keys!\nScroll to the bottom of the code and replace 'PASTE_API_KEY_HERE'.");
+            } else {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+                console.log("Firebase Ready");
+            }
+        } catch(e) {
+            alert("🔥 Startup Crash: " + e.message);
+        }
+
+        // AUTH LISTENER
+        if(auth) {
+            auth.onAuthStateChanged(u => {
+                if(u) {
+                    currentUser = u;
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appShell').style.display = 'flex';
+                    db.collection('users').doc(u.uid).onSnapshot(doc => {
+                        if(!doc.exists) db.collection('users').doc(u.uid).set({email: u.email, credits: 10});
+                        else document.getElementById('cDisplay').innerText = "Credits: " + (doc.data().credits || 0);
+                    });
+                    setTimeout(draw, 200);
+                } else {
+                    document.getElementById('loginScreen').style.display = 'flex';
+                    document.getElementById('appShell').style.display = 'none';
+                }
+            });
+        }
+
+        function authLogin() {
+            if(!auth) return alert("Firebase not loaded. Check keys.");
+            const e = document.getElementById('uEmail').value;
+            const p = document.getElementById('uPass').value;
+            if(!e || !p) return alert("Please enter email and password");
+            
+            document.getElementById('authMsg').innerText = "Trying to login...";
+            auth.signInWithEmailAndPassword(e, p).catch(err => {
+                alert("Login Error: " + err.message);
+                document.getElementById('authMsg').innerText = err.message;
+            });
+        }
+
+        function authSignup() {
+            if(!auth) return alert("Firebase not loaded. Check keys.");
+            const e = document.getElementById('uEmail').value;
+            const p = document.getElementById('uPass').value;
+            auth.createUserWithEmailAndPassword(e, p).catch(err => {
+                alert("Signup Error: " + err.message);
+                document.getElementById('authMsg').innerText = err.message;
+            });
+        }
+
+        // IMAGE MODAL
+        const fInput = document.getElementById('fInput');
+        fInput.addEventListener('click', () => fInput.value = '');
+        fInput.addEventListener('change', (e) => {
+            if(e.target.files[0]) {
+                const r = new FileReader();
+                r.onload = (evt) => { showModal(evt.target.result); };
+                r.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        function handleLink() {
+            const url = document.getElementById('lInput').value;
+            if(url) showModal(url);
+        }
+
+        function showModal(src) {
+            tempImg = src;
+            document.getElementById('previewImg').src = src;
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        async function closeModal(confirmed) {
+            document.getElementById('confirmModal').style.display = 'none';
+            if(confirmed && tempImg) {
+                const paid = await payCredits();
+                if(paid) {
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.onload = () => { currentImg = img; autoColor(img); draw(); };
+                    img.src = tempImg;
+                }
+            }
+            tempImg = null;
+        }
+
+        async function payCredits() {
+            const ref = db.collection('users').doc(currentUser.uid);
+            try {
+                await db.runTransaction(async (t) => {
+                    const d = await t.get(ref);
+                    const c = d.data().credits || 0;
+                    if(c < 4) throw "Low Balance";
+                    t.update(ref, { credits: c - 4 });
+                });
+                return true;
+            } catch(e) {
+                alert("Transaction Failed: " + e);
+                return false;
+            }
+        }
+
+        function autoColor(img) {
+            try {
+                const c = document.createElement('canvas'); c.width=1; c.height=1;
+                c.getContext('2d').drawImage(img,0,0,1,1);
+                const p = c.getContext('2d').getImageData(0,0,1,1).data;
+                const h = "#" + ((1 << 24) + (p[0] << 16) + (p[1] << 8) + p[2]).toString(16).slice(1);
+                document.getElementById('clr').value = h;
+            } catch(e){}
+        }
+
+        // DRAW ENGINE
+        function getVal(id) {
+            const el = document.getElementById(id);
+            const val = el.value.trim() === "" ? el.placeholder : el.value;
+            return parseFloat(val) || 0;
+        }
+
+        function draw() {
+            const canvas = document.getElementById('cvs');
+            const ctx = canvas.getContext('2d');
+            
+            const tW = getVal('tW');
+            const tH = getVal('tH');
+            const gap = getVal('gap');
+            const clr = document.getElementById('clr').value;
+            const shp = document.getElementById('shp').value;
+
+            const sW_txt = document.getElementById('sW').value.trim() || document.getElementById('sW').placeholder;
+            const sH_txt = document.getElementById('sH').value.trim() || document.getElementById('sH').placeholder;
+
+            const cols = sW_txt.split(',').map(n=>parseFloat(n)).filter(n=>n>0);
+            const rows = sH_txt.split(',').map(n=>parseFloat(n)).filter(n=>n>0);
+            const finalCols = cols.length ? cols : [tW];
+            const finalRows = rows.length ? rows : [tH];
+
+            const PPI = 5;
+            const gridW = finalCols.reduce((a,b)=>a+b,0);
+            const gridH = finalRows.reduce((a,b)=>a+b,0);
+            
+            const visW = gridW + ((finalCols.length-1)*gap);
+            const visH = gridH + ((finalRows.length-1)*gap);
+            const PAD = 40; 
+            
+            canvas.width = (visW * PPI) + (PAD * 2);
+            canvas.height = (visH * PPI) + (PAD * 2);
+
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,canvas.width, canvas.height);
+
+            let cY = PAD, accH = 0;
+            finalRows.forEach((h, rI) => {
+                let cX = PAD, accW = 0;
+                let rShp = 'rect';
+                if(shp === 'circle') rShp = 'circle';
+                else if(shp === 'arch-top' && rI === 0) rShp = 'arch-top';
+                else if(shp === 'arch-bottom' && rI === finalRows.length-1) rShp = 'arch-bottom';
+
+                finalCols.forEach((w, cI) => {
+                    const dW = w*PPI, dH = h*PPI;
+                    ctx.save();
+                    
+                    ctx.beginPath();
+                    trace(ctx, cX, cY, dW, dH, rShp, PPI);
+                    ctx.clip();
+                    
+                    ctx.fillStyle = clr; ctx.fill();
+                    
+                    if(currentImg) {
+                        const orgX = cX - (accW*PPI);
+                        const orgY = cY - (accH*PPI);
+                        ctx.save();
+                        ctx.beginPath(); ctx.rect(orgX, orgY, tW*PPI, tH*PPI); ctx.clip();
+                        ctx.drawImage(currentImg, orgX, orgY, tW*PPI, tH*PPI);
+                        ctx.restore();
+                    }
+                    ctx.restore();
+
+                    ctx.lineWidth = 2; ctx.strokeStyle = "#333";
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
+
+                    // Text
+                    ctx.fillStyle="black"; ctx.font="bold 14px Arial"; ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+20);
+                    ctx.save(); ctx.translate(cX-15, cY+dH/2); ctx.rotate(-Math.PI/2);
+                    ctx.fillText(h+'"', 0, 0); ctx.restore();
+
+                    cX += dW + (gap*PPI); accW += w;
+                });
+                cY += (h*PPI) + (gap*PPI); accH += h;
+            });
+        }
+
+        function trace(ctx, x, y, w, h, type, ppi) {
+            const ad = Math.min(h, 10*ppi);
+            if(type==='rect') ctx.rect(x,y,w,h);
+            else if(type==='circle') ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, 2*Math.PI);
+            else if(type==='arch-top') {
+                ctx.moveTo(x, y+h); ctx.lineTo(x, y+ad);
+                ctx.bezierCurveTo(x, y, x+w, y, x+w, y+ad);
+                ctx.lineTo(x+w, y+h); ctx.closePath();
+            } else if(type==='arch-bottom') {
+                ctx.moveTo(x, y); ctx.lineTo(x+w, y);
+                ctx.lineTo(x+w, y+h-ad);
+                ctx.bezierCurveTo(x+w, y+h, x, y+h, x, y+h-ad);
+                ctx.lineTo(x, y); ctx.closePath();
+            }
+        }
+
+        function downloadImg() {
+            const l = document.createElement('a');
+            l.download = 'hakimi-preview.png';
+            l.href = document.getElementById('cvs').toDataURL();
+            l.click();
+        }
+    </script>
+</body>
+</html>
         .sidebar { width: 320px; background: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow-y: auto; }
         .sidebar-header { padding: 20px; border-bottom: 1px solid #e5e7eb; }
         .sidebar-content { padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 20px; }
