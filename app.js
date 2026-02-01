@@ -180,7 +180,7 @@ window.addEventListener('load', () => {
     };
 });
     window.auth.signInWithEmailAndPassword(em, pw).catch(err => document.getElementById('log').innerText = err.message);
-
+}
 
 function handleSignup() {
     const em = document.getElementById('email').value;
