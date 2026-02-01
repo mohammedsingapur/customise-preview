@@ -2,38 +2,292 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro | Single File</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hakimi Pro v13 (Debug)</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
     <style>
-        :root { --primary: #0f172a; --accent: #2563eb; --bg: #f8fafc; --border: #e2e8f0; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* LOGIN */
+        #login-view { position: fixed; inset: 0; background: white; z-index: 100; display: flex; justify-content: center; align-items: center; }
+        .box { width: 320px; padding: 40px; border: 1px solid #ddd; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin-top: 10px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-black { background: #0f172a; color: white; }
+        .btn-white { background: white; color: #333; border: 1px solid #ddd; }
+        .error { color: #dc2626; font-size: 13px; margin-top: 15px; background: #fee2e2; padding: 10px; border-radius: 4px; display: none; text-align: left; }
 
-        /* LOGIN SCREEN */
-        #login-view {
-            position: fixed; inset: 0; z-index: 50; background: rgba(255,255,255,0.95);
-            display: flex; align-items: center; justify-content: center; padding: 20px;
+        /* APP */
+        #app-view { display: none; width: 100%; height: 100%; }
+        aside { width: 320px; background: white; padding: 20px; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
+        main { flex: 1; background: #e2e8f0; display: flex; justify-content: center; align-items: center; padding: 20px; overflow: auto; }
+        canvas { background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="login-view">
+        <div class="box">
+            <h2>Hakimi Pro v13</h2>
+            <form id="loginForm">
+                <input id="email" type="email" placeholder="Email" required>
+                <input id="pass" type="password" placeholder="Password" required>
+                <button type="submit" class="btn-black">Sign In</button>
+            </form>
+            <button onclick="handleSignup()" class="btn-white">Create Account</button>
+            <div id="log" class="error"></div>
+        </div>
+    </div>
+
+    <div id="app-view">
+        <aside>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>Hakimi Tools</strong>
+                <span id="credit-badge" style="color:#2563eb; font-weight:bold; font-size:12px;">Loading...</span>
+            </div>
+
+            <input type="file" id="fInput">
+            <input id="sW" placeholder="Widths (55, 55)" oninput="draw()">
+            <input id="sH" placeholder="Heights (90)" oninput="draw()">
+            <input id="tW" placeholder="Total W (110)" oninput="draw()">
+            <input id="tH" placeholder="Total H (90)" oninput="draw()">
+            <input id="gap" placeholder="Gap (2)" oninput="draw()">
+            <input type="color" id="clr" value="#ffffff" oninput="draw()" style="height:40px; width:100%;">
+            <select id="shp" onchange="draw()" style="padding:10px;">
+                <option value="rect">Rectangle</option>
+                <option value="circle">Circle</option>
+                <option value="arch-top">Arch Top</option>
+                <option value="arch-bottom">Arch Bottom</option>
+            </select>
+
+            <button onclick="downloadCanvas()" class="btn-black">Download Preview</button>
+            <button onclick="auth.signOut()" class="btn-white" style="color:red; border-color:red;">Logout</button>
+        </aside>
+        <main><canvas id="cvs"></canvas></main>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION (PASTE KEYS CAREFULLY) ---
+        var firebaseConfig = {
+            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+  authDomain: "customise-previews.firebaseapp.com",
+  projectId: "customise-previews",
+  storageBucket: "customise-previews.firebasestorage.app",
+  messagingSenderId: "1073406972228",
+  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+        };
+        // ------------------------------------------------
+
+        // GLOBAL VARS
+        var db, auth, currentUser, currentImg;
+
+        // 2. INITIALIZATION (With Error Trapping)
+        try {
+            if(firebaseConfig.apiKey.includes("PASTE")) {
+                throw new Error("You forgot to paste your API Keys at the bottom of the file!");
+            }
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            
+            db = firebase.firestore();
+            auth = firebase.auth();
+            console.log("✅ Firebase Initialized");
+
+        } catch (e) {
+            alert("🔥 CRITICAL CONFIG ERROR:\n" + e.message);
+            document.getElementById('log').style.display = 'block';
+            document.getElementById('log').innerText = e.message;
         }
-        .auth-card {
-            background: white; width: 100%; max-width: 360px; padding: 40px 30px;
-            border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid var(--border);
-            text-align: center;
+
+        // 3. AUTH LOGIC
+        if(auth) {
+            auth.onAuthStateChanged(function(user) {
+                if (user) {
+                    console.log("User Logged In:", user.email);
+                    currentUser = user;
+                    document.getElementById('login-view').style.display = 'none';
+                    document.getElementById('app-view').style.display = 'flex';
+                    
+                    // Credit Listener
+                    db.collection('users').doc(user.uid).onSnapshot(function(doc) {
+                        if (!doc.exists) db.collection('users').doc(user.uid).set({ email: user.email, credits: 10 });
+                        else document.getElementById('credit-badge').innerText = (doc.data().credits || 0) + " Credits";
+                    }, function(err) {
+                        console.error("DB Error (Likely Permissions):", err);
+                        alert("Database Locked: Go to Firebase Console -> Firestore -> Rules and allow read/write.");
+                    });
+
+                    setTimeout(draw, 500);
+                } else {
+                    console.log("No User");
+                    document.getElementById('login-view').style.display = 'flex';
+                    document.getElementById('app-view').style.display = 'none';
+                }
+            });
         }
-        .auth-inp {
-            width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border);
-            border-radius: 8px; font-size: 16px; background: #f8fafc;
+
+        // 4. MANUAL LOGIN HANDLER
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault(); // STOP REFRESH
+            
+            var em = document.getElementById('email').value;
+            var pw = document.getElementById('pass').value;
+            var log = document.getElementById('log');
+            
+            log.style.display = 'block';
+            log.innerText = "Connecting...";
+
+            if(!auth) return log.innerText = "Firebase not loaded (Check Keys)";
+
+            auth.signInWithEmailAndPassword(em, pw)
+                .then(function() { log.style.display = 'none'; })
+                .catch(function(err) {
+                    console.error("Login Fail:", err);
+                    log.innerText = err.message;
+                });
+            
+            return false;
+        });
+
+        function handleSignup() {
+            var em = document.getElementById('email').value;
+            var pw = document.getElementById('pass').value;
+            if(!em || !pw) return alert("Enter email and password");
+            
+            auth.createUserWithEmailAndPassword(em, pw)
+                .catch(function(err) { alert(err.message); });
         }
-        .btn-auth {
-            width: 100%; padding: 12px; background: var(--primary); color: white;
-            border: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin-top: 5px; cursor: pointer;
+
+        // 5. IMAGE & DRAWING
+        document.getElementById('fInput').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                // Payment Check
+                if(!confirm("Spend 4 Credits?")) { e.target.value = ''; return; }
+
+                var ref = db.collection('users').doc(currentUser.uid);
+                // Transaction
+                db.runTransaction(function(t) {
+                    return t.get(ref).then(function(doc) {
+                        var c = doc.data().credits || 0;
+                        if (c < 4) throw "Low Balance";
+                        t.update(ref, { credits: c - 4 });
+                    });
+                }).then(function() {
+                    // Success -> Load Image
+                    var r = new FileReader();
+                    r.onload = function(evt) {
+                        var img = new Image();
+                        img.onload = function() {
+                            currentImg = img;
+                            // Safe Color
+                            try {
+                                var c = document.createElement('canvas'); c.width=1; c.height=1;
+                                c.getContext('2d').drawImage(img,0,0,1,1);
+                                var p = c.getContext('2d').getImageData(0,0,1,1).data;
+                                document.getElementById('clr').value = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
+                            } catch(e){}
+                            draw();
+                        };
+                        img.src = evt.target.result;
+                    };
+                    r.readAsDataURL(e.target.files[0]);
+                }).catch(function(err) { alert(err); e.target.value = ''; });
+            }
+        });
+
+        function getV(id) { 
+            var el = document.getElementById(id);
+            return parseFloat(el.value || el.placeholder) || 0; 
         }
+
+        function draw() {
+            var cvs = document.getElementById('cvs');
+            var ctx = cvs.getContext('2d');
+            
+            var tW = getV('tW'), tH = getV('tH'), gap = getV('gap');
+            var clr = document.getElementById('clr').value;
+            var shp = document.getElementById('shp').value;
+
+            var sW = (document.getElementById('sW').value || "55, 55").split(',').map(Number).filter(Boolean);
+            var sH = (document.getElementById('sH').value || "90").split(',').map(Number).filter(Boolean);
+            
+            var cols = sW.length ? sW : [tW];
+            var rows = sH.length ? sH : [tH];
+            
+            var PPI = 5; var P = 20;
+            var gW = cols.reduce((a,b)=>a+b,0);
+            var gH = rows.reduce((a,b)=>a+b,0);
+            
+            var vW = gW + ((cols.length-1)*gap);
+            var vH = gH + ((rows.length-1)*gap);
+            
+            cvs.width = (vW*PPI) + (P*2);
+            cvs.height = (vH*PPI) + (P*2);
+
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,cvs.width, cvs.height);
+            
+            var cY = P;
+            rows.forEach(function(h, rI) {
+                var cX = P; var aW = 0;
+                var rShp = shp;
+                if(shp.includes('arch')) {
+                    if(shp==='arch-top' && rI!==0) rShp='rect';
+                    if(shp==='arch-bottom' && rI!==rows.length-1) rShp='rect';
+                }
+
+                cols.forEach(function(w, cI) {
+                    var dW = w*PPI; var dH = h*PPI;
+                    
+                    ctx.save();
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.clip();
+                    ctx.fillStyle = clr; ctx.fill();
+                    
+                    if(currentImg) {
+                        ctx.drawImage(currentImg, cX-(aW*PPI), P, tW*PPI, tH*PPI); 
+                    }
+                    ctx.restore();
+                    
+                    ctx.lineWidth=2; ctx.strokeStyle="#333";
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
+                    
+                    ctx.fillStyle="black"; ctx.font="bold 13px Arial"; ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+20);
+                    
+                    ctx.save(); ctx.translate(cX-10, cY+dH/2); ctx.rotate(-Math.PI/2);
+                    ctx.fillText(h+'"', 0, 0); ctx.restore();
+
+                    cX += dW + (gap*PPI); aW += w;
+                });
+                cY += (h*PPI) + (gap*PPI);
+            });
+        }
+
+        function trace(ctx, x, y, w, h, t, p) {
+            var d = Math.min(h, 10*p);
+            if(t==='rect') ctx.rect(x,y,w,h);
+            else if(t==='circle') ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, 2*Math.PI);
+            else if(t==='arch-top') {
+                ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); 
+                ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); ctx.lineTo(x+w,y+h);
+            } else if(t==='arch-bottom') {
+                ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h-d);
+                ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); ctx.lineTo(x,y);
+            }
+            ctx.closePath();
+        }
+
+        function downloadCanvas() {
+            var a = document.createElement('a');
+            a.download = 'hakimi-preview.png';
+            a.href = document.getElementById('cvs').toDataURL();
+            a.click();
+        }
+    </script>
+</body>
+</html>
         .error-log { color: #dc2626; font-size: 13px; margin-top: 15px; min-height: 18px; }
 
         /* APP DASHBOARD */
