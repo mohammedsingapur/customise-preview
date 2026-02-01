@@ -1,39 +1,267 @@
 // app.js
 console.log("2. Loading App Logic...");
 
-// Wait for window load to ensure firebase is ready
-window.addEventListener('load', () => {
-    
-    // SAFETY CHECK
-    if (!window.auth || !window.db) {
-        console.error("Firebase missing. Check config.js");
-        return;
-    }
+// --- GLOBAL VARIABLES ---
+let currentUser = null;
+let currentImg = null;
+let tempSrc = null;
 
-    let currentUser = null;
-    let currentImg = null;
-    let tempSrc = null;
+// --- 1. AUTHENTICATION ---
 
-    // --- AUTH ---
-    window.auth.onAuthStateChanged(user => {
+// Listen for Auth State Changes
+if (window.auth) {
+    window.auth.onAuthStateChanged((user) => {
         if (user) {
             currentUser = user;
-            document.getElementById('login-view').style.display = 'none';
-            document.getElementById('app-view').style.display = 'flex';
+            toggleViews(true); // Show App
             
-            window.db.collection('users').doc(user.uid).onSnapshot(doc => {
+            // Sync Credits
+            window.db.collection('users').doc(user.uid).onSnapshot((doc) => {
                 if (!doc.exists) {
-                    window.db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
+                    window.db.collection('users').doc(user.uid).set({ email: user.email, credits: 10 });
                 } else {
-                    document.getElementById('creds').innerText = (doc.data().credits || 0) + " Credits";
+                    const c = doc.data().credits || 0;
+                    document.getElementById('credit-badge').innerText = c + " Credits";
                 }
             });
-            setTimeout(draw, 500);
+            
+            // Init Canvas
+            setTimeout(window.draw, 500);
         } else {
-            document.getElementById('login-view').style.display = 'flex';
-            document.getElementById('app-view').style.display = 'none';
+            currentUser = null;
+            toggleViews(false); // Show Login
         }
     });
+} else {
+    console.error("Auth not found. Check config.js");
+}
+
+function toggleViews(isLoggedIn) {
+    if (isLoggedIn) {
+        document.getElementById('login-view').style.display = 'none';
+        document.getElementById('app-view').style.display = 'flex';
+    } else {
+        document.getElementById('login-view').style.display = 'flex';
+        document.getElementById('app-view').style.display = 'none';
+    }
+}
+
+// Global Login Function
+window.handleLogin = function(e) {
+    e.preventDefault();
+    const em = document.getElementById('email').value;
+    const pw = document.getElementById('pass').value;
+    const log = document.getElementById('auth-log');
+    
+    log.innerText = "Signing in...";
+    window.auth.signInWithEmailAndPassword(em, pw).catch(err => log.innerText = err.message);
+};
+
+// Global Signup Function
+window.handleSignup = function() {
+    const em = document.getElementById('email').value;
+    const pw = document.getElementById('pass').value;
+    const log = document.getElementById('auth-log');
+    
+    if(!em || !pw) return alert("Enter email and password");
+    
+    log.innerText = "Creating account...";
+    window.auth.createUserWithEmailAndPassword(em, pw).catch(err => log.innerText = err.message);
+};
+
+window.handleLogout = function() {
+    window.auth.signOut();
+};
+
+
+// --- 2. IMAGE LOGIC ---
+
+// File Input Listener
+const fInput = document.getElementById('file-in');
+if(fInput) {
+    fInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            const r = new FileReader();
+            r.onload = (evt) => { 
+                tempSrc = evt.target.result; 
+                document.getElementById('modal').style.display = 'flex'; 
+            };
+            r.readAsDataURL(e.target.files[0]);
+            e.target.value = ''; 
+        }
+    });
+}
+
+window.handleLink = function() {
+    const url = document.getElementById('link-in').value;
+    if (url) {
+        tempSrc = url;
+        document.getElementById('modal').style.display = 'flex';
+    }
+};
+
+window.closeModal = async function(shouldPay) {
+    document.getElementById('modal').style.display = 'none';
+    
+    if (shouldPay && tempSrc) {
+        const ref = window.db.collection('users').doc(currentUser.uid);
+        try {
+            // Deduct
+            await window.db.runTransaction(async (t) => {
+                const doc = await t.get(ref);
+                const c = doc.data().credits || 0;
+                if (c < 4) throw "Low Balance";
+                t.update(ref, { credits: c - 4 });
+            });
+            
+            // Load
+            const img = new Image();
+            img.onload = () => {
+                currentImg = img;
+                window.draw();
+            };
+            img.onerror = () => alert("Failed to load image");
+            img.src = tempSrc;
+            
+        } catch (e) {
+            alert("Error: " + e);
+        }
+    }
+    tempSrc = null;
+};
+
+
+// --- 3. DRAWING ENGINE ---
+
+window.draw = function() {
+    const cvs = document.getElementById('cvs');
+    if(!cvs) return;
+    const ctx = cvs.getContext('2d');
+    
+    // Helpers
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        return parseFloat(el.value || el.placeholder) || 0;
+    };
+    
+    const tW = getVal('tW');
+    const tH = getVal('tH');
+    const gap = getVal('gap');
+    const clr = document.getElementById('clr').value;
+    const shp = document.getElementById('shp').value;
+    
+    // Parse Lists
+    const sW_txt = document.getElementById('sW').value || "55, 55";
+    const sH_txt = document.getElementById('sH').value || "90";
+    
+    const cols = sW_txt.split(',').map(Number).filter(n=>n>0);
+    const rows = sH_txt.split(',').map(Number).filter(n=>n>0);
+    
+    const fCols = cols.length ? cols : [tW];
+    const fRows = rows.length ? rows : [tH];
+    
+    // Config
+    const PPI = 5;
+    const P = 20;
+    
+    const gW = fCols.reduce((a,b)=>a+b,0);
+    const gH = fRows.reduce((a,b)=>a+b,0);
+    
+    const vW = gW + ((fCols.length-1)*gap);
+    const vH = gH + ((fRows.length-1)*gap);
+    
+    cvs.width = (vW*PPI) + (P*2);
+    cvs.height = (vH*PPI) + (P*2);
+    
+    // Draw
+    ctx.fillStyle = "white"; 
+    ctx.fillRect(0,0,cvs.width, cvs.height);
+    
+    let cY = P;
+    
+    fRows.forEach((h, rI) => {
+        let cX = P;
+        let accW = 0; // Accumulated Width for image mapping
+        
+        // Shape logic
+        let rShp = 'rect';
+        if(shp === 'circle') rShp = 'circle';
+        if(shp === 'arch-top' && rI === 0) rShp = 'arch-top';
+        if(shp === 'arch-bottom' && rI === fRows.length-1) rShp = 'arch-bottom';
+
+        fCols.forEach((w, cI) => {
+            const dW = w*PPI;
+            const dH = h*PPI;
+            
+            ctx.save();
+            
+            // Path
+            ctx.beginPath();
+            trace(ctx, cX, cY, dW, dH, rShp, PPI);
+            ctx.clip();
+            
+            // Fill
+            ctx.fillStyle = clr; 
+            ctx.fill();
+            
+            // Image (Simple Mapping)
+            if(currentImg) {
+                // Draw image to cover the FULL grid area, but offset for this cell
+                // Offset = Current X minus Accumulated Width
+                // This aligns the image seamlessly across cells
+                const offX = cX - (accW*PPI); 
+                // Note: Vertical alignment is simplified here for stability
+                ctx.drawImage(currentImg, offX, P, tW*PPI, tH*PPI); 
+            }
+            
+            ctx.restore();
+            
+            // Stroke
+            ctx.lineWidth = 2; 
+            ctx.strokeStyle = "#333";
+            ctx.beginPath();
+            trace(ctx, cX, cY, dW, dH, rShp, PPI);
+            ctx.stroke();
+            
+            // Text
+            ctx.fillStyle = "black"; 
+            ctx.font = "12px Arial"; 
+            ctx.textAlign = "center";
+            ctx.fillText(w+'"', cX+dW/2, cY+dH+15);
+            
+            ctx.save();
+            ctx.translate(cX-10, cY+dH/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText(h+'"', 0, 0);
+            ctx.restore();
+            
+            cX += dW + (gap*PPI);
+            accW += w;
+        });
+        cY += (h*PPI) + (gap*PPI);
+    });
+};
+
+function trace(ctx, x, y, w, h, t, p) {
+    const d = Math.min(h, 10*p);
+    if(t==='rect') ctx.rect(x,y,w,h);
+    else if(t==='circle') ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, 2*Math.PI);
+    else if(t==='arch-top') {
+        ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); 
+        ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); ctx.lineTo(x+w,y+h);
+    } else if(t==='arch-bottom') {
+        ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h-d);
+        ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+}
+
+window.download = function() {
+    const a = document.createElement('a');
+    a.download = 'hakimi-preview.png';
+    a.href = document.getElementById('cvs').toDataURL();
+    a.click();
+};
 
     // Make functions global so HTML can see them
     window.handleLogin = function(e) {
