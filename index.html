@@ -2,38 +2,348 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hakimi Pro v14</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hakimi Pro v15</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
     <style>
-        body { font-family: sans-serif; background: #eee; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        /* CSS RESET & STYLES */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eee; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* DEBUG BAR */
+        #debug-bar { background: #fee2e2; color: #b91c1c; font-size: 11px; padding: 8px; display: none; border-bottom: 1px solid #ef4444; font-family: monospace; }
+
+        /* LOGIN SCREEN */
+        #login-view { position: fixed; inset: 0; z-index: 50; background: white; display: flex; justify-content: center; align-items: center; }
+        .auth-box { width: 300px; padding: 30px; text-align: center; }
+        .inp { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+        .btn { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .btn-black { background: #000; color: white; }
+        .btn-white { background: #fff; color: #000; border: 1px solid #ccc; }
+
+        /* MAIN APP */
+        #app-view { display: none; width: 100%; height: 100%; flex-direction: column; }
         
-        /* ERROR CONSOLE (Visible on Phone) */
-        #debug-console {
-            background: #333; color: #ff5555; font-family: monospace; font-size: 12px;
-            padding: 10px; display: none; border-bottom: 2px solid red; max-height: 100px; overflow: auto;
+        /* SIDEBAR (Top on mobile, Left on Desktop) */
+        aside { background: white; padding: 15px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 10px; max-height: 40vh; overflow-y: auto; }
+        @media (min-width: 768px) {
+            #app-view { flex-direction: row; }
+            aside { width: 320px; border-right: 1px solid #ccc; border-bottom: none; max-height: 100vh; }
         }
 
-        /* LOGIN */
-        #login-view { flex: 1; display: flex; justify-content: center; align-items: center; background: white; z-index: 10; }
-        .box { width: 300px; padding: 30px; border: 1px solid #ccc; text-align: center; border-radius: 8px; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        
-        /* BUTTONS */
-        .btn-black { width: 100%; padding: 12px; background: #000; color: white; border: none; cursor: pointer; margin-top: 10px; font-weight: bold; border-radius: 4px; }
-        .btn-white { width: 100%; padding: 12px; background: #fff; color: #333; border: 1px solid #ccc; cursor: pointer; margin-top: 5px; border-radius: 4px; }
+        /* CANVAS AREA */
+        main { flex: 1; background: #e5e5e5; display: flex; justify-content: center; align-items: flex-start; padding: 20px; overflow: auto; }
+        canvas { background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 100%; }
 
-        /* APP */
-        #app-view { display: none; height: 100%; }
-        aside { width: 320px; background: white; padding: 15px; border-right: 1px solid #ccc; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        main { flex: 1; background: #ddd; display: flex; justify-content: center; align-items: center; padding: 20px; overflow: auto; }
-        canvas { background: white; max-width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        /* CONTROLS */
+        .row { display: flex; gap: 10px; }
+        .btn-upload { border: 2px dashed #ccc; padding: 15px; text-align: center; color: #666; font-weight: bold; cursor: pointer; display: block; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
     </style>
 </head>
+<body>
+
+    <div id="debug-bar"></div>
+
+    <div id="login-view">
+        <div class="auth-box">
+            <h2>Hakimi Pro</h2>
+            <p id="status-text" style="color:#666; font-size:14px;">Initializing...</p>
+            
+            <input id="email" class="inp" type="email" placeholder="Email">
+            <input id="pass" class="inp" type="password" placeholder="Password">
+            
+            <button class="btn btn-black" type="button" onclick="appLogin()">Sign In</button>
+            <button class="btn btn-white" type="button" onclick="appSignup()">Create Account</button>
+        </div>
+    </div>
+
+    <div id="app-view">
+        <aside>
+            <div style="display:flex; justify-content:space-between;">
+                <strong>Hakimi Tools</strong>
+                <span id="credit-display" style="color:blue;">...</span>
+            </div>
+
+            <input type="file" id="fInput" hidden>
+            <div class="btn-upload" onclick="document.getElementById('fInput').click()">
+                📁 Upload Image (4 Credits)
+            </div>
+
+            <div class="row">
+                <input id="sW" placeholder="Widths (55, 55)" oninput="draw()">
+                <input id="sH" placeholder="Heights (90)" oninput="draw()">
+            </div>
+            <div class="row">
+                <input id="tW" placeholder="Total W (110)" oninput="draw()">
+                <input id="tH" placeholder="Total H (90)" oninput="draw()">
+            </div>
+            <div class="row">
+                <input id="gap" placeholder="Gap (2)" oninput="draw()">
+                <input type="color" id="clr" value="#ffffff" oninput="draw()" style="height:35px;">
+            </div>
+            <select id="shp" onchange="draw()">
+                <option value="rect">Rectangle</option>
+                <option value="circle">Circle</option>
+                <option value="arch-top">Arch Top</option>
+                <option value="arch-bottom">Arch Bottom</option>
+            </select>
+
+            <button class="btn btn-black" onclick="downloadCanvas()">Download Preview</button>
+            <button class="btn btn-white" onclick="appLogout()" style="color:red; border-color:red;">Logout</button>
+        </aside>
+
+        <main>
+            <canvas id="cvs"></canvas>
+        </main>
+    </div>
+
+    <script>
+        // --- ERROR TRAPPING ---
+        window.onerror = function(msg, url, line) {
+            var d = document.getElementById('debug-bar');
+            d.style.display = 'block';
+            d.innerText = "Error Line " + line + ": " + msg;
+        };
+
+        // --- PASTE KEYS HERE ---
+        var firebaseConfig = {
+            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+  authDomain: "customise-previews.firebaseapp.com",
+  projectId: "customise-previews",
+  storageBucket: "customise-previews.firebasestorage.app",
+  messagingSenderId: "1073406972228",
+  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+        };
+        // -----------------------
+
+        // GLOBAL VARS
+        var db, auth, currentUser, currentImg;
+
+        // INIT FIREBASE
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.firestore();
+            auth = firebase.auth();
+            document.getElementById('status-text').innerText = "Ready to Login";
+        } catch (e) {
+            document.getElementById('status-text').innerText = "Config Error (Check Keys)";
+            console.error(e);
+        }
+
+        // AUTH LISTENER
+        if (auth) {
+            auth.onAuthStateChanged(function(user) {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('login-view').style.display = 'none';
+                    document.getElementById('app-view').style.display = 'flex';
+                    
+                    // Credit Listener
+                    db.collection('users').doc(user.uid).onSnapshot(function(doc) {
+                        if (!doc.exists) {
+                            db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
+                        } else {
+                            var c = doc.data().credits || 0;
+                            document.getElementById('credit-display').innerText = c + " Credits";
+                        }
+                    });
+                    setTimeout(draw, 500);
+                } else {
+                    document.getElementById('login-view').style.display = 'flex';
+                    document.getElementById('app-view').style.display = 'none';
+                }
+            });
+        }
+
+        // LOGIN FUNCTIONS
+        function appLogin() {
+            var e = document.getElementById('email').value;
+            var p = document.getElementById('pass').value;
+            document.getElementById('status-text').innerText = "Logging in...";
+            auth.signInWithEmailAndPassword(e, p).catch(function(err) {
+                document.getElementById('status-text').innerText = err.message;
+            });
+        }
+
+        function appSignup() {
+            var e = document.getElementById('email').value;
+            var p = document.getElementById('pass').value;
+            document.getElementById('status-text').innerText = "Creating Account...";
+            auth.createUserWithEmailAndPassword(e, p).catch(function(err) {
+                document.getElementById('status-text').innerText = err.message;
+            });
+        }
+
+        function appLogout() {
+            auth.signOut();
+        }
+
+        // IMAGE LOGIC
+        document.getElementById('fInput').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                if(!confirm("Spend 4 Credits to load?")) return;
+
+                var ref = db.collection('users').doc(currentUser.uid);
+                
+                // Transaction
+                db.runTransaction(function(t) {
+                    return t.get(ref).then(function(doc) {
+                        var c = doc.data().credits || 0;
+                        if (c < 4) throw "Insufficient Credits";
+                        t.update(ref, { credits: c - 4 });
+                    });
+                }).then(function() {
+                    // Success
+                    var r = new FileReader();
+                    r.onload = function(evt) {
+                        var img = new Image();
+                        img.onload = function() {
+                            currentImg = img;
+                            // Auto Color
+                            try {
+                                var c = document.createElement('canvas'); c.width=1; c.height=1;
+                                c.getContext('2d').drawImage(img,0,0,1,1);
+                                var p = c.getContext('2d').getImageData(0,0,1,1).data;
+                                var hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
+                                document.getElementById('clr').value = hex;
+                            } catch(e){}
+                            draw();
+                        };
+                        img.src = evt.target.result;
+                    };
+                    r.readAsDataURL(e.target.files[0]);
+                }).catch(function(err) {
+                    alert("Error: " + err);
+                });
+            }
+        });
+
+        // DRAW ENGINE
+        function getV(id) {
+            var el = document.getElementById(id);
+            return parseFloat(el.value || el.placeholder) || 0;
+        }
+
+        function draw() {
+            var cvs = document.getElementById('cvs');
+            var ctx = cvs.getContext('2d');
+            
+            var tW = getV('tW'), tH = getV('tH'), gap = getV('gap');
+            var clr = document.getElementById('clr').value;
+            var shp = document.getElementById('shp').value;
+
+            var sW_txt = document.getElementById('sW').value || "55, 55";
+            var sH_txt = document.getElementById('sH').value || "90";
+            
+            var cols = sW_txt.split(',').map(Number).filter(function(n){ return n>0 });
+            var rows = sH_txt.split(',').map(Number).filter(function(n){ return n>0 });
+            
+            var fCols = cols.length ? cols : [tW];
+            var fRows = rows.length ? rows : [tH];
+            
+            var PPI = 5; 
+            var P = 20;
+            
+            var gW = fCols.reduce(function(a,b){ return a+b }, 0);
+            var gH = fRows.reduce(function(a,b){ return a+b }, 0);
+            
+            var vW = gW + ((fCols.length-1)*gap);
+            var vH = gH + ((fRows.length-1)*gap);
+            
+            cvs.width = (vW*PPI) + (P*2);
+            cvs.height = (vH*PPI) + (P*2);
+
+            ctx.fillStyle = "white"; 
+            ctx.fillRect(0,0,cvs.width, cvs.height);
+            
+            var cY = P;
+            var accH = 0;
+
+            fRows.forEach(function(h, rI) {
+                var cX = P; 
+                var accW = 0;
+                var rShp = shp;
+                if(shp.indexOf('arch') > -1) {
+                    if(shp==='arch-top' && rI!==0) rShp='rect';
+                    if(shp==='arch-bottom' && rI!==fRows.length-1) rShp='rect';
+                }
+
+                fCols.forEach(function(w, cI) {
+                    var dW = w*PPI; 
+                    var dH = h*PPI;
+                    
+                    ctx.save();
+                    ctx.beginPath(); 
+                    trace(ctx, cX, cY, dW, dH, rShp, PPI); 
+                    ctx.clip();
+                    
+                    ctx.fillStyle = clr; 
+                    ctx.fill();
+                    
+                    if(currentImg) {
+                        var offX = cX - (accW*PPI);
+                        var offY = cY - (accH*PPI); // Improved vertical mapping
+                        // Draw image relative to the full grid accumulator
+                        // Using P as origin anchor for image
+                        ctx.drawImage(currentImg, P-(accW*PPI), P-(accH*PPI), (tW*PPI), (tH*PPI)); 
+                    }
+                    ctx.restore();
+                    
+                    ctx.lineWidth=2; 
+                    ctx.strokeStyle="#333";
+                    ctx.beginPath(); 
+                    trace(ctx, cX, cY, dW, dH, rShp, PPI); 
+                    ctx.stroke();
+                    
+                    ctx.fillStyle="black"; 
+                    ctx.font="bold 13px Arial"; 
+                    ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+15);
+                    
+                    ctx.save(); 
+                    ctx.translate(cX-10, cY+dH/2); 
+                    ctx.rotate(-Math.PI/2);
+                    ctx.fillText(h+'"', 0, 0); 
+                    ctx.restore();
+
+                    cX += dW + (gap*PPI); 
+                    accW += w;
+                });
+                cY += (h*PPI) + (gap*PPI);
+                accH += h;
+            });
+        }
+
+        function trace(ctx, x, y, w, h, t, p) {
+            var d = Math.min(h, 10*p);
+            if(t==='rect') ctx.rect(x,y,w,h);
+            else if(t==='circle') ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, 2*Math.PI);
+            else if(t==='arch-top') {
+                ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); 
+                ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); ctx.lineTo(x+w,y+h);
+            } else if(t==='arch-bottom') {
+                ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h-d);
+                ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); ctx.lineTo(x,y);
+            }
+            ctx.closePath();
+        }
+
+        function downloadCanvas() {
+            var a = document.createElement('a');
+            a.download = 'hakimi-preview.png';
+            a.href = document.getElementById('cvs').toDataURL();
+            a.click();
+        }
+    </script>
+</body>
+</html>
 <body>
 
     <div id="debug-console"></div>
