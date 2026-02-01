@@ -133,7 +133,7 @@ function download() {
     a.href = document.getElementById('cvs').toDataURL();
     a.click();
 }
-.addEventListener('change', (e) => {
+addEventListener('change', (e) => {
     if (e.target.files[0]) {
         const reader = new FileReader();
         reader.onload = (evt) => openModal(evt.target.result);
