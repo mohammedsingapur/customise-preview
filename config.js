@@ -1,7 +1,8 @@
 // config.js
 console.log("1. Loading Config...");
 
-const firebaseConfig = {
+// FIX: Use window.firebaseConfig instead of const to prevent crashes
+window.firebaseConfig = {
     apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
   authDomain: "customise-previews.firebaseapp.com",
   projectId: "customise-previews",
@@ -11,14 +12,17 @@ const firebaseConfig = {
 };
 
 try {
-    firebase.initializeApp(firebaseConfig);
+    // Check if initialized to prevent double-init
+    if (!firebase.apps.length) {
+        firebase.initializeApp(window.firebaseConfig);
+    }
     
-    // ATTACH TO WINDOW TO MAKE GLOBALLY ACCESSIBLE
+    // Attach to window so app.js can find them
     window.db = firebase.firestore();
     window.auth = firebase.auth();
     
-    console.log("✅ Firebase Initialized & Attached to Window");
+    console.log("✅ Firebase Config Loaded");
 } catch (e) {
-    console.error("❌ Config Error:", e);
-    alert("Firebase Config Failed: " + e.message);
+    console.error("Config Error:", e);
+    alert("Config Error: " + e.message);
 }
