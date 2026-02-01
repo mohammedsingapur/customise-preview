@@ -2,38 +2,85 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hakimi Pro | Engineer Build</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
     <style>
-        :root { --primary: #0f172a; --accent: #2563eb; --bg: #f8fafc; --border: #e2e8f0; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        body { font-family: sans-serif; margin: 0; background: #f4f4f5; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* LOGIN */
+        #login-view { position: fixed; inset: 0; background: white; z-index: 10; display: flex; justify-content: center; align-items: center; }
+        .box { padding: 30px; border: 1px solid #ddd; border-radius: 8px; width: 300px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; margin-top: 10px; cursor: pointer; background: #000; color: white; border: none; }
+        
+        /* APP */
+        #app-view { display: none; width: 100%; height: 100%; }
+        aside { width: 300px; background: white; padding: 20px; border-right: 1px solid #ddd; display: flex; flex-direction: column; gap: 15px; }
+        main { flex: 1; background: #eee; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        canvas { background: white; max-width: 100%; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        
+        /* MODAL */
+        #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 20; display: none; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 20px; text-align: center; border-radius: 8px; }
+    </style>
+</head>
+<body>
 
-        /* LOGIN SCREEN */
-        #login-view {
-            position: fixed; inset: 0; z-index: 50; background: rgba(255,255,255,0.95);
-            display: flex; align-items: center; justify-content: center; padding: 20px;
-        }
-        .auth-card {
-            background: white; width: 100%; max-width: 360px; padding: 40px 30px;
-            border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid var(--border);
-            text-align: center;
-        }
-        .auth-inp {
-            width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border);
-            border-radius: 8px; font-size: 16px; background: #f8fafc;
-        }
-        .btn-auth {
-            width: 100%; padding: 12px; background: var(--primary); color: white;
-            border: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin-top: 5px; cursor: pointer;
-        }
+    <div id="login-view">
+        <div class="box">
+            <h2>Hakimi Login</h2>
+            <form onsubmit="handleLogin(event)">
+                <input id="email" type="email" placeholder="Email" required>
+                <input id="pass" type="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+            <button onclick="handleSignup()" style="background:#fff; color:#000; border:1px solid #000; margin-top:5px;">Create Account</button>
+            <div id="log" style="color:red; margin-top:10px; font-size:12px;"></div>
+        </div>
+    </div>
+
+    <div id="app-view">
+        <aside>
+            <h3>Hakimi Tools</h3>
+            <div id="creds" style="color:blue; font-weight:bold;">Loading...</div>
+            
+            <input type="file" id="file-in">
+            
+            <input id="sW" placeholder="Split W (55, 55)">
+            <input id="sH" placeholder="Split H (90)">
+            <input id="tW" placeholder="Total W (110)">
+            <input id="tH" placeholder="Total H (90)">
+            <input id="gap" placeholder="Gap (2)">
+            <input type="color" id="clr" value="#ffffff">
+            
+            <button onclick="draw()">Update Preview</button>
+            <button onclick="download()">Download</button>
+            <button onclick="window.auth.signOut()" style="background:red; margin-top:auto;">Logout</button>
+        </aside>
+        <main>
+            <canvas id="cvs"></canvas>
+        </main>
+    </div>
+
+    <div id="modal">
+        <div class="modal-content">
+            <h3>Confirm (4 Credits)</h3>
+            <div style="display:flex; gap:10px;">
+                <button onclick="closeModal(true)">Yes</button>
+                <button onclick="closeModal(false)" style="background:#ccc; color:#000;">No</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
         .error-log { color: #dc2626; font-size: 13px; margin-top: 15px; min-height: 18px; }
 
         /* DASHBOARD LAYOUT */
