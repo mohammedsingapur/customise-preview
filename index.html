@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro v18.0</title>
+    <title>Hakimi Pro v19</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
     <style>
-        /* BASE STYLES */
+        /* RESET & BASE */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eee; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
         /* LOGIN SCREEN */
         #login-view { position: fixed; inset: 0; z-index: 50; background: white; display: flex; justify-content: center; align-items: center; }
@@ -23,92 +23,132 @@
             display: flex; align-items: center; justify-content: center; gap: 10px;
         }
 
-        /* MAIN APP */
+        /* MAIN APP LAYOUT */
         #app-view { display: none; width: 100%; height: 100%; flex-direction: column; }
         
-        aside { background: white; padding: 15px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow-y: auto; z-index: 10; }
+        /* SIDEBAR (CONTROLS) */
+        aside { 
+            background: white; padding: 20px; border-bottom: 1px solid #eee; 
+            display: flex; flex-direction: column; gap: 15px; 
+            max-height: 50vh; overflow-y: auto; z-index: 10; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
         @media (min-width: 768px) {
             #app-view { flex-direction: row; }
-            aside { width: 320px; border-right: 1px solid #ccc; border-bottom: none; max-height: 100vh; }
+            aside { width: 350px; border-right: 1px solid #eee; border-bottom: none; max-height: 100vh; }
         }
 
-        main { flex: 1; background: #e5e5e5; display: flex; justify-content: center; align-items: flex-start; padding: 20px; overflow: auto; }
-        
-        canvas { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-width: 100%; height: auto; }
+        /* HEADER INFO */
+        .user-info { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 10px; }
+        .user-name { font-weight: 700; color: #333; }
+        .user-credits { color: #2563eb; font-weight: 600; background: #eff6ff; padding: 4px 10px; border-radius: 12px; }
 
-        /* MODAL (THE POPUP) */
+        /* INPUTS styling match screenshot */
+        label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+        input[type="text"], input[type="number"], select { 
+            width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; 
+            font-size: 15px; color: #1f2937; background: #fff;
+        }
+        input:focus { outline: none; border-color: #2563eb; }
+        
+        .row { display: flex; gap: 15px; }
+        .col { flex: 1; }
+
+        /* UPLOAD BUTTON */
+        .btn-upload { 
+            border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; cursor: pointer; 
+            display: flex; align-items: center; gap: 10px; background: #fff; transition: 0.2s;
+        }
+        .btn-upload:active { background: #f3f4f6; }
+        
+        /* GRID SPLITTER BOX */
+        .blue-box {
+            background: #eff6ff; border: 1px solid #dbeafe; padding: 15px; border-radius: 8px;
+        }
+        .blue-box h4 { margin: 0 0 10px 0; color: #1e40af; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+
+        /* ACTION BUTTONS */
+        .btn-black { width: 100%; padding: 14px; background: #111; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; }
+        .btn-link { background: none; border: none; color: #dc2626; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 10px; }
+
+        /* CANVAS */
+        main { flex: 1; background: #f3f4f6; display: flex; justify-content: center; align-items: flex-start; padding: 20px; overflow: auto; }
+        canvas { background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 100%; height: auto; border-radius: 4px; }
+
+        /* MODAL */
         #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: none; justify-content: center; align-items: center; }
-        .modal-box { background: white; width: 90%; max-width: 350px; padding: 20px; border-radius: 10px; text-align: center; }
-        .modal-img { max-width: 100%; height: 200px; object-fit: contain; margin: 15px 0; border: 1px solid #eee; background: #f9f9f9; }
-
-        /* CONTROLS */
-        .row { display: flex; gap: 10px; }
-        .btn-upload { border: 2px dashed #999; padding: 12px; text-align: center; color: #555; font-weight: 600; cursor: pointer; display: block; border-radius: 6px; background: #f9f9f9; }
-        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        
-        .btn-black { width: 100%; padding: 12px; background: black; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-go { background: #333; color: white; border: none; border-radius: 4px; padding: 0 15px; cursor: pointer; font-weight: bold; }
-        .btn-logout { background: none; border: none; color: red; font-size: 12px; cursor: pointer; margin-top: 5px; text-decoration: underline; }
-        
-        /* MODAL BUTTONS */
-        .btn-cancel { flex: 1; padding: 12px; border: none; background: #eee; color: #333; font-weight: bold; border-radius: 6px; cursor: pointer; }
-        .btn-confirm { flex: 1; padding: 12px; border: none; background: #2563eb; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .modal-box { background: white; width: 85%; max-width: 320px; padding: 20px; border-radius: 12px; text-align: center; }
+        .modal-img { max-width: 100%; height: 180px; object-fit: contain; margin: 15px 0; border: 1px solid #eee; }
+        .btn-confirm { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }
+        .btn-cancel { width: 100%; padding: 12px; background: #eee; color: #333; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="login-view">
         <div class="auth-box">
-            <h2 style="margin-top:0;">Hakimi Pro</h2>
-            <p style="color:#666; margin-bottom:30px;">v18.0 Visual Edition</p>
+            <h2>Hakimi Pro</h2>
             <button class="btn-google" onclick="googleLogin()"><span>🔵</span> Sign in with Google</button>
-            <p id="login-msg" style="color:red; font-size:12px; margin-top:20px;"></p>
+            <p id="login-msg" style="color:red; font-size:12px; margin-top:15px;"></p>
         </div>
     </div>
 
     <div id="app-view">
         <aside>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <strong>Hakimi Tools</strong>
-                <span id="credit-display" style="color:blue; font-weight:bold;">...</span>
+            <div class="user-info">
+                <span id="userName" class="user-name">Guest</span>
+                <span id="creditDisplay" class="user-credits">...</span>
             </div>
 
+            <label>Upload Image</label>
             <input type="file" id="fInput" hidden>
             <div class="btn-upload" onclick="document.getElementById('fInput').click()">
-                📁 Upload Image (4 Credits)
+                <span style="font-size:20px;">📂</span>
+                <div style="font-size:13px; color:#555;">
+                    <strong>Choose File</strong><br>
+                    <span style="font-size:11px; color:#888;">Spend 4 Credits</span>
+                </div>
             </div>
 
-            <div style="display:flex; gap:5px;">
-                <input type="text" id="lInput" placeholder="Or Paste Image Link...">
-                <button class="btn-go" onclick="loadLink()">GO</button>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:5px;">
+                <input type="color" id="clr" value="#ffffff" oninput="draw()" style="width:40px; height:40px; padding:0; border:none; background:none;">
+                <label style="margin:0;">Extension Color</label>
             </div>
 
-            <hr style="width:100%; border:0; border-top:1px solid #eee; margin:5px 0;">
-
-            <label style="font-size:11px; font-weight:bold; color:#666; margin-bottom:-5px;">DIMENSIONS</label>
             <div class="row">
-                <input id="sW" placeholder="Split W (55, 55)" oninput="draw()">
-                <input id="sH" placeholder="Heights (90)" oninput="draw()">
-            </div>
-            <div class="row">
-                <input id="tW" placeholder="Total W (110)" oninput="draw()">
-                <input id="tH" placeholder="Total H (90)" oninput="draw()">
+                <div class="col">
+                    <label>Primary Width</label>
+                    <input type="number" id="tW" placeholder="110" oninput="draw()">
+                </div>
+                <div class="col">
+                    <label>Primary Height</label>
+                    <input type="number" id="tH" placeholder="90" oninput="draw()">
+                </div>
             </div>
 
-            <label style="font-size:11px; font-weight:bold; color:#666; margin-bottom:-5px;">STYLE</label>
-            <div class="row">
-                <input id="gap" placeholder="Gap (2)" oninput="draw()">
-                <input type="color" id="clr" value="#ffffff" oninput="draw()" style="height:38px;">
+            <div class="blue-box">
+                <h4>✂️ Grid Splitter</h4>
+                
+                <label>1. Split Widths (Columns)</label>
+                <input type="text" id="sW" placeholder="e.g. 55, 55" oninput="draw()">
+                
+                <label style="margin-top:10px;">2. Split Heights (Rows)</label>
+                <input type="text" id="sH" placeholder="e.g. 30, 30, 30" oninput="draw()">
+                
+                <label style="margin-top:10px;">Gap (in)</label>
+                <input type="number" id="gap" placeholder="2" oninput="draw()">
             </div>
+
+            <label>Panel Shape</label>
             <select id="shp" onchange="draw()">
-                <option value="rect">Rectangle</option>
+                <option value="rect">Rectangle / Square</option>
                 <option value="circle">Circle</option>
                 <option value="arch-top">Arch Top</option>
                 <option value="arch-bottom">Arch Bottom</option>
             </select>
 
-            <button class="btn-black" onclick="downloadCanvas()">Download Preview</button>
-            <button class="btn-logout" onclick="auth.signOut()">Logout</button>
+            <button class="btn-black" onclick="downloadCanvas()">Download</button>
+            <button class="btn-link" onclick="auth.signOut()">Logout</button>
         </aside>
 
         <main>
@@ -118,19 +158,17 @@
 
     <div id="modal">
         <div class="modal-box">
-            <h3 style="margin-top:0;">Confirm Image</h3>
+            <h3>Confirm Image</h3>
             <img id="modal-img" class="modal-img">
             <p>Cost: <b style="color:#dc2626">4 Credits</b></p>
-            <div class="row">
-                <button class="btn-cancel" onclick="closeModal(false)">Cancel</button>
-                <button class="btn-confirm" onclick="closeModal(true)">Pay & Load</button>
-            </div>
+            <button class="btn-confirm" onclick="closeModal(true)">Confirm</button>
+            <button class="btn-cancel" onclick="closeModal(false)">Cancel</button>
         </div>
     </div>
 
     <script>
         // ----------------------------------------------------
-        // 1. CONFIGURATION (PASTE KEYS HERE)
+        // CONFIGURATION (PASTE KEYS HERE)
         // ----------------------------------------------------
         var firebaseConfig = {
             apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
@@ -151,7 +189,7 @@
             auth = firebase.auth();
         } catch (e) { alert("Config Error: " + e.message); }
 
-        // AUTH & LOGIN
+        // AUTH
         if (auth) {
             auth.onAuthStateChanged(function(user) {
                 if (user) {
@@ -159,9 +197,13 @@
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('app-view').style.display = 'flex';
                     
+                    // Display Name
+                    document.getElementById('userName').innerText = user.displayName || user.email;
+
+                    // Credits
                     db.collection('users').doc(user.uid).onSnapshot(function(doc) {
                         if (!doc.exists) db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
-                        else document.getElementById('credit-display').innerText = (doc.data().credits || 0) + " Credits";
+                        else document.getElementById('creditDisplay').innerText = (doc.data().credits || 0) + " Credits";
                     });
                     setTimeout(draw, 500);
                 } else {
@@ -173,38 +215,152 @@
 
         function googleLogin() {
             var provider = new firebase.auth.GoogleAuthProvider();
-            document.getElementById('login-msg').innerText = "Opening popup...";
+            document.getElementById('login-msg').innerText = "Working...";
             auth.signInWithPopup(provider).catch(function(error) {
                 document.getElementById('login-msg').innerText = error.message;
             });
         }
 
-        // --- IMAGE LOGIC (VISUAL MODAL) ---
-        
-        // 1. File Upload
+        // IMAGE HANDLING
         document.getElementById('fInput').addEventListener('change', function(e) {
             if (e.target.files[0]) {
                 var reader = new FileReader();
-                reader.onload = function(evt) { openModal(evt.target.result); };
+                reader.onload = function(evt) { 
+                    tempSrc = evt.target.result;
+                    document.getElementById('modal-img').src = tempSrc;
+                    document.getElementById('modal').style.display = 'flex';
+                };
                 reader.readAsDataURL(e.target.files[0]);
-                e.target.value = ''; // Reset
+                e.target.value = '';
             }
         });
 
-        // 2. Link Load
-        function loadLink() {
-            var url = document.getElementById('lInput').value;
-            if(url) openModal(url);
+        function closeModal(shouldPay) {
+            document.getElementById('modal').style.display = 'none';
+            if (shouldPay && tempSrc) {
+                var ref = db.collection('users').doc(currentUser.uid);
+                db.runTransaction(function(t) {
+                    return t.get(ref).then(function(doc) {
+                        var c = doc.data().credits || 0;
+                        if (c < 4) throw "Low Balance";
+                        t.update(ref, { credits: c - 4 });
+                    });
+                }).then(function() {
+                    var img = new Image();
+                    img.onload = function() {
+                        currentImg = img;
+                        tryColor(tempSrc);
+                        draw();
+                    };
+                    img.src = tempSrc;
+                }).catch(function(err) { alert(err); });
+            }
+            if(!shouldPay) tempSrc = null;
         }
 
-        // 3. Show Modal
-        function openModal(src) {
-            tempSrc = src;
-            document.getElementById('modal-img').src = src;
-            document.getElementById('modal').style.display = 'flex';
+        function tryColor(src) {
+            var i = new Image();
+            i.crossOrigin = "Anonymous";
+            i.onload = function() {
+                try {
+                    var c = document.createElement('canvas'); c.width=1; c.height=1;
+                    c.getContext('2d').drawImage(i,0,0,1,1);
+                    var p = c.getContext('2d').getImageData(0,0,1,1).data;
+                    document.getElementById('clr').value = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
+                    draw();
+                } catch(e){}
+            };
+            i.src = src;
         }
 
-        // 4. Handle Modal Choice
+        // DRAWING
+        function getV(id) {
+            var el = document.getElementById(id);
+            return parseFloat(el.value || el.placeholder) || 0;
+        }
+
+        function draw() {
+            var cvs = document.getElementById('cvs');
+            var ctx = cvs.getContext('2d');
+            
+            var sW_raw = document.getElementById('sW').value || "55, 55";
+            var sH_raw = document.getElementById('sH').value || "90";
+            
+            var tW = getV('tW') || 110;
+            var tH = getV('tH') || 90;
+            var gap = getV('gap') || 2;
+            var clr = document.getElementById('clr').value;
+            var shp = document.getElementById('shp').value;
+
+            var cols = sW_raw.split(',').map(Number).filter(function(n){ return n>0 });
+            var rows = sH_raw.split(',').map(Number).filter(function(n){ return n>0 });
+            
+            var fCols = cols.length ? cols : [tW];
+            var fRows = rows.length ? rows : [tH];
+            
+            var PPI = 10; var P = 40;
+            var gW = fCols.reduce(function(a,b){ return a+b }, 0);
+            var gH = fRows.reduce(function(a,b){ return a+b }, 0);
+            var vW = gW + ((fCols.length-1)*gap);
+            var vH = gH + ((fRows.length-1)*gap);
+            
+            cvs.width = (vW*PPI) + (P*2);
+            cvs.height = (vH*PPI) + (P*2);
+
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,cvs.width, cvs.height);
+            
+            var cY = P; var accH = 0;
+            fRows.forEach(function(h, rI) {
+                var cX = P; var accW = 0;
+                var rShp = shp;
+                if(shp.includes('arch')) {
+                    if(shp==='arch-top' && rI!==0) rShp='rect';
+                    if(shp==='arch-bottom' && rI!==fRows.length-1) rShp='rect';
+                }
+
+                fCols.forEach(function(w, cI) {
+                    var dW = w*PPI; var dH = h*PPI;
+                    ctx.save();
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.clip();
+                    ctx.fillStyle = clr; ctx.fill();
+                    
+                    if(currentImg) ctx.drawImage(currentImg, P-(accW*PPI), P-(accH*PPI), (tW*PPI), (tH*PPI));
+                    
+                    ctx.restore();
+                    ctx.lineWidth=3; ctx.strokeStyle="#333";
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
+                    
+                    ctx.fillStyle="black"; ctx.font="bold 24px Arial"; ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+30);
+                    
+                    ctx.save(); ctx.translate(cX-15, cY+dH/2); ctx.rotate(-Math.PI/2);
+                    ctx.fillText(h+'"', 0, 0); ctx.restore();
+
+                    cX += dW + (gap*PPI); accW += w;
+                });
+                cY += (h*PPI) + (gap*PPI); accH += h;
+            });
+        }
+
+        function trace(ctx, x, y, w, h, t, p) {
+            var d = Math.min(h, 10*p);
+            if(t==='rect') ctx.rect(x,y,w,h);
+            else if(t==='circle') ctx.ellipse(x+w/2, y+h/2, w/2, h/2, 0, 0, 2*Math.PI);
+            else if(t==='arch-top') { ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); ctx.lineTo(x+w,y+h); }
+            else if(t==='arch-bottom') { ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h-d); ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); ctx.lineTo(x,y); }
+            ctx.closePath();
+        }
+
+        function downloadCanvas() {
+            var a = document.createElement('a');
+            a.download = 'hakimi-preview.png';
+            a.href = document.getElementById('cvs').toDataURL();
+            a.click();
+        }
+    </script>
+</body>
+</html>
+. Handle Modal Choice
         function closeModal(shouldPay) {
             document.getElementById('modal').style.display = 'none';
 
