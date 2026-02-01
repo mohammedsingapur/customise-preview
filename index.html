@@ -10,12 +10,12 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
     <style>
-        /* RESET */
+        /* BASE STYLES */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
         /* ERROR BAR */
-        #error-bar { background: #fee2e2; color: #b91c1c; padding: 10px; font-size: 12px; display: none; border-bottom: 1px solid red; }
+        #error-bar { background: #fee2e2; color: #b91c1c; padding: 10px; font-size: 12px; display: none; border-bottom: 1px solid red; font-family: monospace; }
 
         /* LOGIN SCREEN */
         #login-view { position: fixed; inset: 0; z-index: 50; background: white; display: flex; justify-content: center; align-items: center; }
@@ -74,11 +74,11 @@
         .modal-img { max-width: 100%; height: 180px; object-fit: contain; margin: 15px 0; border: 1px solid #eee; }
         .btn-confirm { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }
         .btn-cancel { width: 100%; padding: 12px; background: #eee; color: #333; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
-        
-        /* CHECK ROW */
+
+        /* EXTRA CONTROLS */
         .check-row { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
-        .check-row input { width: auto; }
         input[type=range] { width: 100%; margin: 10px 0; }
+        .check-row input { width: auto; }
     </style>
 </head>
 <body>
@@ -194,9 +194,228 @@
         };
         // ----------------------------------------------------
 
-        var db, auth, currentUser;
+        // GLOBAL VARS
+        var db, auth, currentUser, currentImg, tempSrc;
+        var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
 
+        // ERROR TRAP
         window.onerror = function(msg, url, line) {
+            var d = document.getElementById('error-bar');
+            d.style.display = 'block';
+            d.innerText = "Error Line " + line + ": " + msg;
+        };
+
+        // INIT FIREBASE
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+        } catch (e) { alert("Config Error: " + e.message); }
+
+        // LOGIN
+        function googleLogin() {
+            var provider = new firebase.auth.GoogleAuthProvider();
+            document.getElementById('login-msg').innerText = "Working...";
+            auth.signInWithPopup(provider).catch(function(error) {
+                document.getElementById('login-msg').innerText = error.message;
+            });
+        }
+
+        // AUTH LISTENER
+        if (auth) {
+            auth.onAuthStateChanged(function(user) {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('login-view').style.display = 'none';
+                    document.getElementById('app-view').style.display = 'flex';
+                    
+                    db.collection('users').doc(user.uid).onSnapshot(function(doc) {
+                        if (!doc.exists) db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
+                        else document.getElementById('creditDisplay').innerText = (doc.data().credits || 0) + " Credits";
+                    });
+                    
+                    setTimeout(draw, 500);
+                } else {
+                    document.getElementById('login-view').style.display = 'flex';
+                    document.getElementById('app-view').style.display = 'none';
+                }
+            });
+        }
+
+        // APP LOGIC
+        document.getElementById('fInput').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(evt) { 
+                    tempSrc = evt.target.result;
+                    document.getElementById('modal-img').src = tempSrc;
+                    document.getElementById('modal').style.display = 'flex';
+                };
+                reader.readAsDataURL(e.target.files[0]);
+                e.target.value = '';
+            }
+        });
+
+        function closeModal(shouldPay) {
+            document.getElementById('modal').style.display = 'none';
+            if (shouldPay && tempSrc) {
+                var ref = db.collection('users').doc(currentUser.uid);
+                db.runTransaction(function(t) {
+                    return t.get(ref).then(function(doc) {
+                        var c = doc.data().credits || 0;
+                        if (c < 4) throw "Low Balance";
+                        t.update(ref, { credits: c - 4 });
+                    });
+                }).then(function() {
+                    var img = new Image();
+                    img.onload = function() {
+                        currentImg = img;
+                        imgState.x = 0; imgState.y = 0; imgState.zoom = 1.0;
+                        document.getElementById('zoom').value = 1.0;
+                        document.getElementById('zoomVal').innerText = "1.0x";
+                        tryColor(tempSrc);
+                        draw();
+                    };
+                    img.src = tempSrc;
+                }).catch(function(err) { alert(err); });
+            }
+            if(!shouldPay) tempSrc = null;
+        }
+
+        function tryColor(src) {
+            var i = new Image();
+            i.crossOrigin = "Anonymous";
+            i.onload = function() {
+                try {
+                    var c = document.createElement('canvas'); c.width=1; c.height=1;
+                    c.getContext('2d').drawImage(i,0,0,1,1);
+                    var p = c.getContext('2d').getImageData(0,0,1,1).data;
+                    var hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
+                    document.getElementById('clr').value = hex;
+                    draw();
+                } catch(e){}
+            };
+            i.src = src;
+        }
+
+        function updateZoom() {
+            var v = document.getElementById('zoom').value;
+            imgState.zoom = parseFloat(v);
+            document.getElementById('zoomVal').innerText = v + "x";
+            draw();
+        }
+
+        // DRAG
+        var cvs = document.getElementById('cvs');
+        function startDrag(e) {
+            imgState.isDragging = true;
+            imgState.lastX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            imgState.lastY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        }
+        function doDrag(e) {
+            if(!imgState.isDragging) return;
+            e.preventDefault(); 
+            var cx = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            var cy = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            
+            imgState.x += (cx - imgState.lastX);
+            imgState.y += (cy - imgState.lastY);
+            imgState.lastX = cx;
+            imgState.lastY = cy;
+            draw();
+        }
+        function stopDrag() { imgState.isDragging = false; }
+
+        cvs.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', doDrag);
+        window.addEventListener('mouseup', stopDrag);
+        cvs.addEventListener('touchstart', startDrag);
+        window.addEventListener('touchmove', doDrag);
+        window.addEventListener('touchend', stopDrag);
+
+        function getV(id) {
+            var el = document.getElementById(id);
+            return parseFloat(el.value || el.placeholder) || 0;
+        }
+
+        function draw() {
+            var ctx = cvs.getContext('2d');
+            var sW_raw = document.getElementById('sW').value;
+            var sH_raw = document.getElementById('sH').value;
+            var tW = getV('tW') || 100;
+            var tH = getV('tH') || 90;
+            var gap = getV('gap') || 2;
+            var clr = document.getElementById('clr').value;
+            var shp = document.getElementById('shp').value;
+            var fit = document.getElementById('fitMode').value;
+            var mirror = document.getElementById('mirror').checked;
+
+            var cols = sW_raw ? sW_raw.split(',').map(Number).filter(function(n){ return n>0 }) : [tW];
+            var rows = sH_raw ? sH_raw.split(',').map(Number).filter(function(n){ return n>0 }) : [tH];
+            if(cols.length === 0) cols = [tW];
+            if(rows.length === 0) rows = [tH];
+            
+            var PPI = 10; var P = 40;
+            var gW = cols.reduce(function(a,b){ return a+b }, 0);
+            var gH = rows.reduce(function(a,b){ return a+b }, 0);
+            var vW = gW + ((cols.length-1)*gap);
+            var vH = gH + ((rows.length-1)*gap);
+            
+            cvs.width = (vW*PPI) + (P*2);
+            cvs.height = (vH*PPI) + (P*2);
+
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,cvs.width, cvs.height);
+            
+            var cY = P; var accH = 0;
+            rows.forEach(function(h, rI) {
+                var cX = P; var accW = 0;
+                var rShp = shp;
+                if(shp.includes('arch')) {
+                    if(shp==='arch-top' && rI!==0) rShp='rect';
+                    if(shp==='arch-bottom' && rI!==rows.length-1) rShp='rect';
+                }
+
+                cols.forEach(function(w, cI) {
+                    var dW = w*PPI; var dH = h*PPI;
+                    ctx.save();
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.clip();
+                    ctx.fillStyle = clr; ctx.fill();
+                    
+                    if(currentImg) {
+                        ctx.save();
+                        var totalW_px = tW * PPI;
+                        var totalH_px = tH * PPI;
+                        var centerX = (cX - (accW * PPI)) + (totalW_px / 2);
+                        var centerY = (cY - (accH * PPI)) + (totalH_px / 2);
+                        
+                        ctx.translate(centerX + imgState.x, centerY + imgState.y);
+                        ctx.scale(imgState.zoom, imgState.zoom);
+                        if(mirror) ctx.scale(-1, 1);
+                        
+                        var drawW, drawH;
+                        var imgRatio = currentImg.width / currentImg.height;
+                        var areaRatio = totalW_px / totalH_px;
+                        
+                        if (fit === 'stretch') {
+                            drawW = totalW_px; drawH = totalH_px;
+                        } else if (fit === 'contain') {
+                            if (imgRatio > areaRatio) { drawW = totalW_px; drawH = totalW_px / imgRatio; }
+                            else { drawH = totalH_px; drawW = totalH_px * imgRatio; }
+                        } else { 
+                            if (imgRatio > areaRatio) { drawH = totalH_px; drawW = totalH_px * imgRatio; }
+                            else { drawW = totalW_px; drawH = totalW_px / imgRatio; }
+                        }
+                        
+                        ctx.drawImage(currentImg, -drawW/2, -drawH/2, drawW, drawH);
+                        ctx.restore();
+                    }
+                    ctx.restore();
+                    ctx.lineWidth=3; ctx.strokeStyle="#333";
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
+                    ctx.fillStyle="black"; ctx.font="bold 24px Arial"; ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+30);
+                    ctx.save(); ctx.translate(cX-15, cY+dH/2); ctx.rotate(-Math.PI/2);
+                    ctx.fillT.onerror = function(msg, url, line) {
             var d = document.getElementById('error-bar');
             d.style.display = 'block';
             d.innerText = "Error Line " + line + ": " + msg;
