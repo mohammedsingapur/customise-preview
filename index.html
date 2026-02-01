@@ -3,37 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hakimi Preview v4.0</title>
+    <title>Hakimi Preview v3.1</title>
+    <script src="//cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
     <style>
-        /* CSS STYLES */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 60px; }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; }
         
-        /* OVERLAYS */
-        .overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 9999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white;
+        /* LOGIN SCREEN */
+        #loginScreen {
+            height: 100vh; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; background: #333;
         }
-        .login-box { background: white; padding: 40px; border-radius: 12px; width: 85%; max-width: 320px; color: #333; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .box { background: white; padding: 30px; border-radius: 12px; width: 300px; text-align: center; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        .btn-main { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .btn-sec { background: transparent; color: #007bff; border: none; margin-top: 10px; cursor: pointer; text-decoration: underline; }
 
-        /* BUTTONS */
-        .btn-google { background: #4285F4; color: white; width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin-top: 20px; cursor: pointer; }
-        .btn-download { width: 100%; padding: 15px; background: #2e7d32; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-        .btn-go { background: #333; color: white; border: none; padding: 0 15px; border-radius: 4px; font-weight: bold; }
+        /* APP SCREEN */
+        #appScreen { display: none; padding: 20px; }
+        .header { background: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .canvas-container { margin-top: 20px; text-align: center; background: #ddd; padding: 10px; border-radius: 8px; overflow: auto; }
+        canvas { background: white; max-width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
 
-        /* APP LAYOUT */
-        #appContainer { display: none; max-width: 1200px; margin: 0 auto; padding: 10px; }
-        .header { background: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .credit-badge { background: #e3f2fd; color: #1565c0; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; border: 1px solid #90caf9; }
+    <div id="loginScreen">
+        <div class="box">
+            <h2>🔐 Hakimi Tools</h2>
+            <p>Login to continue</p>
+            
+            <input type="email" id="uEmail" placeholder="Email Address">
+            <input type="password" id="uPass" placeholder="Password">
+            
+            <button class="btn-main" onclick="emailLogin()">Login</button>
+            <button class="btn-sec" onclick="emailSignup()">First time? Register</button>
+            
+            <p id="msg" style="color:red; margin-top:10px; font-size:13px;"></p>
+        </div>
+    </div>
+
+    <div id="appScreen">
+        <div class="header">
+            <strong>Hakimi Preview</strong>
+            <button onclick="logout()" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px;">Logout</button>
+        </div>
         
-        /* CARD STYLES */
+        <div style="margin-top:20px; background:white; padding:15px; border-radius:8px;">
+            <label>Upload Image</label>
+            <input type="file" id="fInput" accept="image/*" style="width:100%">
+            <p style="font-size:12px; color:#666;">(Credits will be deducted automatically)</p>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="mainCanvas" width="300" height="300"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // --- PASTE KEYS HERE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+  authDomain: "customise-previews.firebaseapp.com",
+  projectId: "customise-previews",
+  storageBucket: "customise-previews.firebasestorage.app",
+  messagingSenderId: "1073406972228",
+  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+        };
+        // -----------------------
+
+        // Initialize
+        try {
+            firebase.initializeApp(firebaseConfig);
+            console.log("Firebase Init Success");
+        } catch(e) {
+            alert("🔥 Config Error: " + e.message);
+        }
+
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // AUTH STATE LISTENER
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appScreen').style.display = 'block';
+                drawBlank(); // Draw empty canvas
+            } else {
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('appScreen').style.display = 'none';
+            }
+        });
+
+        // LOGIN FUNCTION
+        function emailLogin() {
+            const e = document.getElementById('uEmail').value;
+            const p = document.getElementById('uPass').value;
+            if(!e || !p) return alert("Enter email and password");
+
+            document.getElementById('msg').innerText = "Logging in...";
+            
+            auth.signInWithEmailAndPassword(e, p)
+                .catch(err => {
+                    alert("Error: " + err.message);
+                    document.getElementById('msg').innerText = err.message;
+                });
+        }
+
+        // REGISTER FUNCTION
+        function emailSignup() {
+            const e = document.getElementById('uEmail').value;
+            const p = document.getElementById('uPass').value;
+            if(!e || !p) return alert("Enter email and password to register");
+
+            document.getElementById('msg').innerText = "Creating Account...";
+
+            auth.createUserWithEmailAndPassword(e, p)
+                .then((cred) => {
+                    // Create User DB Entry
+                    db.collection('users').doc(cred.user.uid).set({
+                        email: e,
+                        credits: 10 // Free credits
+                    });
+                    alert("Account Created! You are logged in.");
+                })
+                .catch(err => {
+                    alert("Error: " + err.message);
+                    document.getElementById('msg').innerText = err.message;
+                });
+        }
+
+        function logout() { auth.signOut(); }
+
+        // SIMPLE DRAW TEST
+        function drawBlank() {
+            const ctx = document.getElementById('mainCanvas').getContext('2d');
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,300,300);
+            ctx.fillStyle = "black"; ctx.font="20px Arial"; ctx.textAlign="center";
+            ctx.fillText("Ready to Preview", 150, 150);
+        }
+
+        // FILE UPLOAD TEST
+        document.getElementById('fInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const r = new FileReader();
+            r.onload = (evt) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('mainCanvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 300, 300);
+                };
+                img.src = evt.target.result;
+            };
+            r.readAsDataURL(file);
+        });
+
+    </script>
+</body>
+</html>
         .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
         .row { display: flex; gap: 10px; margin-bottom: 10px; } .col { flex: 1; }
         label { display: block; font-size: 11px; font-weight: 700; color: #666; margin-bottom: 4px; text-transform: uppercase; }
