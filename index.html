@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro v22</title>
+    <title>Hakimi Pro v23</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -35,6 +35,387 @@
             max-height: 50vh; overflow-y: auto; z-index: 10; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
+        @media (min-width: 768px) {
+            #app-view { flex-direction: row; }
+            aside { width: 360px; border-right: 1px solid #eee; border-bottom: none; max-height: 100vh; }
+        }
+
+        /* CONTROLS */
+        label { display: block; font-size: 11px; font-weight: 700; color: #4b5563; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input[type="text"], input[type="number"], select { 
+            width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; 
+            font-size: 14px; background: #fff; margin-bottom: 5px;
+        }
+        .row { display: flex; gap: 10px; }
+        .col { flex: 1; }
+        
+        .blue-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-bottom: 5px; }
+        
+        .btn-upload { 
+            border: 1px solid #d1d5db; padding: 12px; border-radius: 6px; cursor: pointer; 
+            background: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; color: #374151;
+        }
+
+        /* CANVAS AREA */
+        main { flex: 1; background: #f3f4f6; display: flex; flex-direction: column; align-items: center; padding: 20px; overflow: hidden; position: relative; }
+        .canvas-wrapper { overflow: hidden; max-width: 100%; max-height: 100%; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+        canvas { background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1); cursor: grab; touch-action: none; }
+        canvas:active { cursor: grabbing; }
+        
+        .drag-hint { background: rgba(0,0,0,0.1); padding: 5px 10px; border-radius: 20px; font-size: 12px; color: #666; margin-bottom: 10px; position: absolute; top: 10px; z-index: 5; pointer-events: none; }
+
+        /* BUTTONS */
+        .btn-black { width: 100%; padding: 14px; background: #111; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-link { background: none; border: none; color: #dc2626; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 5px; }
+
+        /* MODAL */
+        #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal-box { background: white; width: 85%; max-width: 320px; padding: 20px; border-radius: 12px; text-align: center; }
+        .modal-img { max-width: 100%; height: 180px; object-fit: contain; margin: 15px 0; border: 1px solid #eee; }
+        .btn-confirm { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }
+        .btn-cancel { width: 100%; padding: 12px; background: #eee; color: #333; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
+        
+        /* CHECK ROW */
+        .check-row { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+        .check-row input { width: auto; }
+        input[type=range] { width: 100%; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <div id="error-bar"></div>
+
+    <div id="login-view">
+        <div class="auth-box">
+            <h2>Hakimi Pro</h2>
+            <button class="btn-google" onclick="googleLogin()"><span>🔵</span> Sign in with Google</button>
+            <p id="login-msg" style="color:red; font-size:12px; margin-top:20px;"></p>
+        </div>
+    </div>
+
+    <div id="app-view">
+        <aside>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="font-size:16px;">Hakimi Tools</strong>
+                <span id="creditDisplay" style="color:#2563eb; font-weight:bold; font-size:13px;">...</span>
+            </div>
+
+            <label>UPLOAD</label>
+            <input type="file" id="fInput" hidden>
+            <div class="btn-upload" onclick="document.getElementById('fInput').click()">
+                <span>📂 Choose File (4 Credits)</span>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Primary Width (in)</label>
+                    <input type="number" id="tW" placeholder="100" oninput="draw()">
+                </div>
+                <div class="col">
+                    <label>Primary Height (in)</label>
+                    <input type="number" id="tH" placeholder="90" oninput="draw()">
+                </div>
+            </div>
+
+            <div class="blue-box">
+                <label>1. Split Widths (Columns)</label>
+                <input type="text" id="sW" placeholder="e.g. 55, 55" oninput="draw()">
+                
+                <label style="margin-top:5px;">2. Split Heights (Rows)</label>
+                <input type="text" id="sH" placeholder="e.g. 30, 30, 30" oninput="draw()">
+                
+                <label style="margin-top:5px;">Gap (in)</label>
+                <input type="number" id="gap" placeholder="2" oninput="draw()">
+            </div>
+
+            <label>Panel Shape</label>
+            <select id="shp" onchange="draw()">
+                <option value="rect">Rectangle / Square</option>
+                <option value="circle">Circle</option>
+                <option value="arch-top">Arch Top</option>
+                <option value="arch-bottom">Arch Bottom</option>
+            </select>
+
+            <div style="background:#f3f4f6; padding:10px; border-radius:8px; margin-top:5px;">
+                <label>Zoom: <span id="zoomVal">1.0x</span></label>
+                <input type="range" id="zoom" min="0.1" max="3.0" step="0.1" value="1.0" oninput="updateZoom()">
+                
+                <div class="check-row">
+                    <input type="checkbox" id="mirror" onchange="draw()">
+                    <label for="mirror" style="margin:0; font-weight:400; font-size:13px;">Mirror Flip</label>
+                </div>
+
+                <label style="margin-top:10px;">Fit Mode:</label>
+                <select id="fitMode" onchange="draw()">
+                    <option value="cover">Cover (Fill Area)</option>
+                    <option value="stretch">Stretch (Force Fit)</option>
+                    <option value="contain">Fit (Whole Image)</option>
+                </select>
+                
+                <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                    <input type="color" id="clr" value="#ffffff" oninput="draw()" style="width:30px; height:30px; border:none; background:none; padding:0;">
+                    <span style="font-size:12px;">Extension Color</span>
+                </div>
+            </div>
+
+            <button class="btn-black" onclick="downloadCanvas()" style="margin-top:15px;">Download</button>
+            <button class="btn-link" onclick="auth.signOut()">Logout</button>
+        </aside>
+
+        <main>
+            <div class="drag-hint">👆 Drag image to position</div>
+            <div class="canvas-wrapper">
+                <canvas id="cvs"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal">
+        <div class="modal-box">
+            <h3>Confirm Image</h3>
+            <img id="modal-img" class="modal-img">
+            <p>Cost: <b style="color:#dc2626">4 Credits</b></p>
+            <button class="btn-confirm" onclick="closeModal(true)">Confirm</button>
+            <button class="btn-cancel" onclick="closeModal(false)">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // ----------------------------------------------------
+        // KEYS
+        // ----------------------------------------------------
+        var firebaseConfig = {
+            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+  authDomain: "customise-previews.firebaseapp.com",
+  projectId: "customise-previews",
+  storageBucket: "customise-previews.firebasestorage.app",
+  messagingSenderId: "1073406972228",
+  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+        };
+        // ----------------------------------------------------
+
+        var db, auth, currentUser;
+
+        window.onerror = function(msg, url, line) {
+            var d = document.getElementById('error-bar');
+            d.style.display = 'block';
+            d.innerText = "Error Line " + line + ": " + msg;
+        };
+
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+        } catch (e) { alert("Config Error: " + e.message); }
+
+        function googleLogin() {
+            var provider = new firebase.auth.GoogleAuthProvider();
+            document.getElementById('login-msg').innerText = "Working...";
+            auth.signInWithPopup(provider).catch(function(error) {
+                document.getElementById('login-msg').innerText = error.message;
+            });
+        }
+
+        if (auth) {
+            auth.onAuthStateChanged(function(user) {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('login-view').style.display = 'none';
+                    document.getElementById('app-view').style.display = 'flex';
+                    
+                    db.collection('users').doc(user.uid).onSnapshot(function(doc) {
+                        if (!doc.exists) db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
+                        else document.getElementById('creditDisplay').innerText = (doc.data().credits || 0) + " Credits";
+                    });
+                    
+                    if(window.draw) setTimeout(window.draw, 500);
+                } else {
+                    document.getElementById('login-view').style.display = 'flex';
+                    document.getElementById('app-view').style.display = 'none';
+                }
+            });
+        }
+    </script>
+
+    <script>
+        var currentImg, tempSrc;
+        var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
+
+        document.getElementById('fInput').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(evt) { 
+                    tempSrc = evt.target.result;
+                    document.getElementById('modal-img').src = tempSrc;
+                    document.getElementById('modal').style.display = 'flex';
+                };
+                reader.readAsDataURL(e.target.files[0]);
+                e.target.value = '';
+            }
+        });
+
+        function closeModal(shouldPay) {
+            document.getElementById('modal').style.display = 'none';
+            if (shouldPay && tempSrc) {
+                var ref = db.collection('users').doc(currentUser.uid);
+                db.runTransaction(function(t) {
+                    return t.get(ref).then(function(doc) {
+                        var c = doc.data().credits || 0;
+                        if (c < 4) throw "Low Balance";
+                        t.update(ref, { credits: c - 4 });
+                    });
+                }).then(function() {
+                    var img = new Image();
+                    img.onload = function() {
+                        currentImg = img;
+                        imgState.x = 0; imgState.y = 0; imgState.zoom = 1.0;
+                        document.getElementById('zoom').value = 1.0;
+                        document.getElementById('zoomVal').innerText = "1.0x";
+                        tryColor(tempSrc);
+                        draw();
+                    };
+                    img.src = tempSrc;
+                }).catch(function(err) { alert(err); });
+            }
+            if(!shouldPay) tempSrc = null;
+        }
+
+        function tryColor(src) {
+            var i = new Image();
+            i.crossOrigin = "Anonymous";
+            i.onload = function() {
+                try {
+                    var c = document.createElement('canvas'); c.width=1; c.height=1;
+                    c.getContext('2d').drawImage(i,0,0,1,1);
+                    var p = c.getContext('2d').getImageData(0,0,1,1).data;
+                    var hex = "#" + ((1<<24)+(p[0]<<16)+(p[1]<<8)+p[2]).toString(16).slice(1);
+                    document.getElementById('clr').value = hex;
+                    draw();
+                } catch(e){}
+            };
+            i.src = src;
+        }
+
+        function updateZoom() {
+            var v = document.getElementById('zoom').value;
+            imgState.zoom = parseFloat(v);
+            document.getElementById('zoomVal').innerText = v + "x";
+            draw();
+        }
+
+        // DRAG
+        var cvs = document.getElementById('cvs');
+        function startDrag(e) {
+            imgState.isDragging = true;
+            imgState.lastX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            imgState.lastY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        }
+        function doDrag(e) {
+            if(!imgState.isDragging) return;
+            e.preventDefault(); 
+            var cx = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            var cy = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            imgState.x += (cx - imgState.lastX);
+            imgState.y += (cy - imgState.lastY);
+            imgState.lastX = cx;
+            imgState.lastY = cy;
+            draw();
+        }
+        function stopDrag() { imgState.isDragging = false; }
+
+        cvs.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', doDrag);
+        window.addEventListener('mouseup', stopDrag);
+        cvs.addEventListener('touchstart', startDrag);
+        window.addEventListener('touchmove', doDrag);
+        window.addEventListener('touchend', stopDrag);
+
+        function getV(id) {
+            var el = document.getElementById(id);
+            return parseFloat(el.value || el.placeholder) || 0;
+        }
+
+        function draw() {
+            var ctx = cvs.getContext('2d');
+            var sW_raw = document.getElementById('sW').value;
+            var sH_raw = document.getElementById('sH').value;
+            var tW = getV('tW') || 100;
+            var tH = getV('tH') || 90;
+            var gap = getV('gap') || 2;
+            var clr = document.getElementById('clr').value;
+            var shp = document.getElementById('shp').value;
+            var fit = document.getElementById('fitMode').value;
+            var mirror = document.getElementById('mirror').checked;
+
+            var cols = sW_raw ? sW_raw.split(',').map(Number).filter(function(n){ return n>0 }) : [tW];
+            var rows = sH_raw ? sH_raw.split(',').map(Number).filter(function(n){ return n>0 }) : [tH];
+            if(cols.length === 0) cols = [tW];
+            if(rows.length === 0) rows = [tH];
+            
+            var PPI = 10; var P = 40;
+            var gW = cols.reduce(function(a,b){ return a+b }, 0);
+            var gH = rows.reduce(function(a,b){ return a+b }, 0);
+            var vW = gW + ((cols.length-1)*gap);
+            var vH = gH + ((rows.length-1)*gap);
+            
+            cvs.width = (vW*PPI) + (P*2);
+            cvs.height = (vH*PPI) + (P*2);
+
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,cvs.width, cvs.height);
+            
+            var cY = P; var accH = 0;
+            rows.forEach(function(h, rI) {
+                var cX = P; var accW = 0;
+                var rShp = shp;
+                if(shp.includes('arch')) {
+                    if(shp==='arch-top' && rI!==0) rShp='rect';
+                    if(shp==='arch-bottom' && rI!==rows.length-1) rShp='rect';
+                }
+
+                cols.forEach(function(w, cI) {
+                    var dW = w*PPI; var dH = h*PPI;
+                    ctx.save();
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.clip();
+                    ctx.fillStyle = clr; ctx.fill();
+                    
+                    if(currentImg) {
+                        ctx.save();
+                        var totalW_px = tW * PPI;
+                        var totalH_px = tH * PPI;
+                        var centerX = (cX - (accW * PPI)) + (totalW_px / 2);
+                        var centerY = (cY - (accH * PPI)) + (totalH_px / 2);
+                        
+                        ctx.translate(centerX + imgState.x, centerY + imgState.y);
+                        ctx.scale(imgState.zoom, imgState.zoom);
+                        if(mirror) ctx.scale(-1, 1);
+                        
+                        var drawW, drawH;
+                        var imgRatio = currentImg.width / currentImg.height;
+                        var areaRatio = totalW_px / totalH_px;
+                        
+                        if (fit === 'stretch') {
+                            drawW = totalW_px; drawH = totalH_px;
+                        } else if (fit === 'contain') {
+                            if (imgRatio > areaRatio) { drawW = totalW_px; drawH = totalW_px / imgRatio; }
+                            else { drawH = totalH_px; drawW = totalH_px * imgRatio; }
+                        } else { 
+                            if (imgRatio > areaRatio) { drawH = totalH_px; drawW = totalH_px * imgRatio; }
+                            else { drawW = totalW_px; drawH = totalW_px / imgRatio; }
+                        }
+                        
+                        ctx.drawImage(currentImg, -drawW/2, -drawH/2, drawW, drawH);
+                        ctx.restore();
+                    }
+                    ctx.restore();
+                    ctx.lineWidth=3; ctx.strokeStyle="#333";
+                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
+                    ctx.fillStyle="black"; ctx.font="bold 24px Arial"; ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+30);
+                    ctx.save(); ctx.translate(cX-15, cY+dH/2); ctx.rotate(-Math.PI/2);
+                    ctx.fillText(h+'"', 0, 0); ctx.restore();
+                    cX += dW + (gap*PPI); accW += w;
+                });
+            }
         @media (min-width: 768px) {
             #app-view { flex-direction: row; }
             aside { width: 360px; border-right: 1px solid #eee; border-bottom: none; max-height: 100vh; }
