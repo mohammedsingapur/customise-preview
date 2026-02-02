@@ -67,15 +67,16 @@
 
         /* CANVAS AREA - CSS FIXED FOR MOBILE */
                 /* CANVAS AREA - MOBILE OPTIMIZED */
+                /* CANVAS AREA - v2.0 STYLE FIX */
         main { 
             flex: 1; 
-            background: #d4d4d8; /* Darker gray to see boundaries */
+            background: #e5e5e5; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             justify-content: center;
             padding: 10px; 
-            overflow: hidden; /* Stops page scroll so you can drag image */
+            overflow: hidden; /* Prevents the page from scrolling */
             position: relative; 
         }
 
@@ -85,22 +86,25 @@
             display: flex; 
             justify-content: center; 
             align-items: center; 
+            overflow: hidden;
         }
-        
-        /* THE MAGIC FIX */
+
         canvas { 
             background: white; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2); 
             
-            /* These lines force it to fit your screen */
-            max-width: 100%;       /* Never wider than screen */
-            max-height: 85vh;      /* Never taller than 85% of screen height */
+            /* FORCE FIT TO SCREEN */
+            max-width: 100%;       /* Width fits phone width */
+            max-height: 80vh;      /* Height fits available vertical space */
             width: auto !important; 
             height: auto !important;
             
-            object-fit: contain;   /* Keeps the shape correct */
+            /* Keep Aspect Ratio */
+            object-fit: contain;   
+            
+            /* Interactions */
             cursor: grab; 
-            touch-action: none;    /* Required for dragging to work */
+            touch-action: none;
         }
         canvas:active { cursor: grabbing; }
 
