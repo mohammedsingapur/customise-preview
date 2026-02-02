@@ -66,37 +66,44 @@
         .btn-link { background: none; border: none; color: #dc2626; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 5px; }
 
         /* CANVAS AREA - CSS FIXED FOR MOBILE */
+                /* CANVAS AREA - MOBILE OPTIMIZED */
         main { 
             flex: 1; 
-            background: #f3f4f6; 
+            background: #d4d4d8; /* Darker gray to see boundaries */
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             justify-content: center;
-            padding: 20px; 
-            overflow: hidden; 
+            padding: 10px; 
+            overflow: hidden; /* Stops page scroll so you can drag image */
             position: relative; 
         }
+
         .canvas-wrapper { 
             width: 100%; 
             height: 100%; 
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            overflow: hidden; 
         }
         
-        /* THIS IS THE FIX: Fits canvas to screen while keeping aspect ratio */
+        /* THE MAGIC FIX */
         canvas { 
             background: white; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+            
+            /* These lines force it to fit your screen */
+            max-width: 100%;       /* Never wider than screen */
+            max-height: 85vh;      /* Never taller than 85% of screen height */
+            width: auto !important; 
+            height: auto !important;
+            
+            object-fit: contain;   /* Keeps the shape correct */
             cursor: grab; 
-            touch-action: none;
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+            touch-action: none;    /* Required for dragging to work */
         }
         canvas:active { cursor: grabbing; }
+
         
         .drag-hint { background: rgba(0,0,0,0.1); padding: 5px 10px; border-radius: 20px; font-size: 12px; color: #666; margin-bottom: 10px; position: absolute; top: 10px; z-index: 5; pointer-events: none; }
 
