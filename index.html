@@ -124,6 +124,10 @@
         <aside>
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <strong style="font-size:16px;">Hakimi Tools</strong>
+                <div id="userName" style="font-size:13px; color:#444; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:5px;">
+    Guest
+</div>
+
                 <span id="creditDisplay" style="color:#2563eb; font-weight:bold; font-size:13px;">...</span>
             </div>
 
@@ -255,6 +259,8 @@
                     currentUser = user;
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('app-view').style.display = 'flex';
+                    document.getElementById('userName').innerText = "👤 " + (user.displayName || user.email);
+                    
                     
                     db.collection('users').doc(user.uid).onSnapshot(function(doc) {
                         if (!doc.exists) db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
