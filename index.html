@@ -387,7 +387,7 @@
             return parseFloat(el.value || el.placeholder) || 0;
         }
 
-                function draw() {
+        function draw() {
             var ctx = cvs.getContext('2d');
             
             // 1. GET INPUTS
@@ -406,46 +406,40 @@
             if(cols.length === 0) cols = [tW];
             if(rows.length === 0) rows = [tH];
             
-            // 2. SET CANVAS SIZE (Fixed HD)
+            // 2. SET FIXED HD RESOLUTION
             var HD_SIZE = 1500; 
             cvs.width = HD_SIZE;
             cvs.height = HD_SIZE;
             
-            // 3. CALCULATE TOTAL DRAWING SIZE (Inches)
+            // 3. CALCULATE VIRTUAL SIZE
             var gW = cols.reduce(function(a,b){ return a+b }, 0);
             var gH = rows.reduce(function(a,b){ return a+b }, 0);
             var vW = gW + ((cols.length-1)*gap);
             var vH = gH + ((rows.length-1)*gap);
             
-            // 4. SAFE AREA CALCULATION (The Fix)
-            // We define a "Safe Box" inside the canvas where drawing MUST happen.
-            var padding = 80;       // Space on Left/Right/Top
-            var bottomLabelSpace = 150; // Extra space at bottom for text labels
+            // 4. SAFE AREA CALCULATION (Updated for Side Labels)
+            var padTop = 60;
+            var padRight = 60;
+            var padLeft = 140;   // Extra space on LEFT for Height Lines
+            var padBottom = 140; // Extra space on BOTTOM for Width Lines
             
-            var safeW = cvs.width - (padding * 2);
-            var safeH = cvs.height - (padding + bottomLabelSpace);
+            var safeW = cvs.width - (padLeft + padRight);
+            var safeH = cvs.height - (padTop + padBottom);
             
-            // 5. CALCULATE RATIO (PPI)
-            // We check which dimension needs more shrinking
+            // 5. CALCULATE RATIO
             var scaleX = safeW / vW;
             var scaleY = safeH / vH;
-            
-            // USE THE SMALLER SCALE (Guarantees fit)
             var PPI = Math.min(scaleX, scaleY);
 
             // 6. CENTER THE DRAWING
-            // Calculate how big the drawing actually IS with this PPI
             var finalDrawW = vW * PPI;
             var finalDrawH = vH * PPI;
             
-            // Center it horizontally
-            var startX = (cvs.width - finalDrawW) / 2;
-            
-            // Center it vertically (accounting for the label space at bottom)
-            var availableVerticalSpace = cvs.height - bottomLabelSpace;
-            var startY = (availableVerticalSpace - finalDrawH) / 2;
+            // Start X is pushed right by the Left Padding
+            var startX = padLeft + (safeW - finalDrawW) / 2;
+            var startY = padTop + (safeH - finalDrawH) / 2;
 
-            // CLEAR BACKGROUND
+            // CLEAR
             ctx.fillStyle = "white"; ctx.fillRect(0,0,cvs.width, cvs.height);
             
             var cY = startY; var accH = 0;
@@ -462,11 +456,11 @@
                     
                     ctx.save();
                     
-                    // CLIP & FILL
+                    // --- A. DRAW SHAPE ---
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.clip();
                     ctx.fillStyle = clr; ctx.fill();
                     
-                    // IMAGE RENDER
+                    // --- B. DRAW IMAGE ---
                     if(currentImg) {
                         ctx.save();
                         var totalW_px = tW * PPI;
@@ -478,7 +472,6 @@
                         var relCenterX = panelCenterX - ( (accW + (w/2)) * PPI ) + (totalW_px/2);
                         var relCenterY = panelCenterY - ( (accH + (h/2)) * PPI ) + (totalH_px/2);
                         
-                        // Apply Pan/Zoom
                         ctx.translate(relCenterX + (imgState.x * (PPI/10)), relCenterY + (imgState.y * (PPI/10)));
                         ctx.scale(imgState.zoom, imgState.zoom);
                         if(mirror) ctx.scale(-1, 1);
@@ -502,25 +495,65 @@
                     }
                     ctx.restore();
                     
-                    // STROKE & TEXT
-                    ctx.lineWidth= 4; 
-                    ctx.strokeStyle="#333";
+                    // --- C. STROKE BORDER ---
+                    ctx.lineWidth = 4; 
+                    ctx.strokeStyle = "#333";
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
                     
-                    // Smart Text Sizing (Never too big, never too small)
-                    var fontSize = Math.max(20, PPI * 0.35); 
+                    // --- D. DIMENSION LINES & TEXT ---
+                    // Settings
+                    var fontSize = Math.max(32, PPI * 0.5); // INCREASED FONT SIZE
+                    ctx.fillStyle = "black"; 
+                    ctx.font = "bold " + fontSize + "px Arial"; 
+                    ctx.textAlign = "center";
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = "#666"; // Grey for lines
+
+                    // 1. WIDTH LINE (Bottom)
+                    var lineY = cY + dH + 20; 
+                    var tickH = 10;
                     
-                    ctx.fillStyle="black"; ctx.font="bold "+fontSize+"px Arial"; ctx.textAlign="center";
-                    ctx.fillText(w+'"', cX+dW/2, cY+dH+(fontSize*1.4));
+                    // Main Line
+                    ctx.beginPath();
+                    ctx.moveTo(cX, lineY); ctx.lineTo(cX + dW, lineY);
+                    ctx.stroke();
                     
-                    ctx.save(); ctx.translate(cX-(fontSize*0.6), cY+dH/2); ctx.rotate(-Math.PI/2);
-                    ctx.fillText(h+'"', 0, 0); ctx.restore();
+                    // Ticks (Left & Right)
+                    ctx.beginPath();
+                    ctx.moveTo(cX, lineY - tickH); ctx.lineTo(cX, lineY + tickH);
+                    ctx.moveTo(cX + dW, lineY - tickH); ctx.lineTo(cX + dW, lineY + tickH);
+                    ctx.stroke();
+
+                    // Text
+                    ctx.fillText(w + '"', cX + dW/2, lineY + fontSize + 5);
+                    
+                    // 2. HEIGHT LINE (Left)
+                    var lineX = cX - 20;
+                    
+                    // Main Line
+                    ctx.beginPath();
+                    ctx.moveTo(lineX, cY); ctx.lineTo(lineX, cY + dH);
+                    ctx.stroke();
+                    
+                    // Ticks (Top & Bottom)
+                    ctx.beginPath();
+                    ctx.moveTo(lineX - tickH, cY); ctx.lineTo(lineX + tickH, cY);
+                    ctx.moveTo(lineX - tickH, cY + dH); ctx.lineTo(lineX + tickH, cY + dH);
+                    ctx.stroke();
+
+                    // Text (Rotated)
+                    ctx.save(); 
+                    ctx.translate(lineX - (fontSize * 0.8), cY + dH/2); 
+                    ctx.rotate(-Math.PI/2);
+                    ctx.fillText(h + '"', 0, 0); 
+                    ctx.restore();
 
                     cX += dW + (gap*PPI); accW += w;
                 });
                 cY += (h*PPI) + (gap*PPI); accH += h;
             });
         }
+
 
 
         function trace(ctx, x, y, w, h, t, p) {
