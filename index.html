@@ -154,8 +154,23 @@
     </div>
 
     <div id="app-view">
-        <aside>
-                        <div class="row">
+         <aside>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="font-size:16px;">Hakimi Tools</strong>
+                <span id="creditDisplay" style="color:#2563eb; font-weight:bold; font-size:13px;">...</span>
+            </div>
+
+            <div id="userName" style="font-size:13px; color:#444; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                Guest
+            </div>
+
+            <label>UPLOAD</label>
+            <input type="file" id="fInput" hidden>
+            <div class="btn-upload" onclick="document.getElementById('fInput').click()">
+                <span>📂 Choose File (4 Credits)</span>
+            </div>
+
+            <div class="row">
                 <div class="col">
                     <label>Primary Width (in)</label>
                     <input type="number" id="tW" placeholder="100" oninput="draw()">
@@ -181,7 +196,40 @@
                 <input type="number" id="gap" placeholder="2" oninput="draw()">
             </div>
 
+            <label>Panel Shape</label>
+            <select id="shp" onchange="draw()">
+                <option value="rect">Rectangle / Square</option>
+                <option value="circle">Circle</option>
+                <option value="arch-top">Arch Top</option>
+                <option value="arch-bottom">Arch Bottom</option>
+            </select>
+
+            <div style="background:#f3f4f6; padding:10px; border-radius:8px; margin-top:5px;">
+                <label>Zoom: <span id="zoomVal">1.0x</span></label>
+                <input type="range" id="zoom" min="0.1" max="3.0" step="0.1" value="1.0" oninput="updateZoom()">
+                
+                <div class="check-row">
+                    <input type="checkbox" id="mirror" onchange="draw()">
+                    <label for="mirror" style="margin:0; font-weight:400; font-size:13px;">Mirror Flip</label>
+                </div>
+
+                <label style="margin-top:10px;">Fit Mode:</label>
+                <select id="fitMode" onchange="draw()">
+                    <option value="cover">Cover (Fill Area)</option>
+                    <option value="stretch">Stretch (Force Fit)</option>
+                    <option value="contain">Fit (Whole Image)</option>
+                </select>
+                
+                <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                    <input type="color" id="clr" value="#ffffff" oninput="draw()" style="width:30px; height:30px; border:none; background:none; padding:0;">
+                    <span style="font-size:12px;">Extension Color</span>
+                </div>
+            </div>
+
+            <button class="btn-black" onclick="downloadCanvas()" style="margin-top:15px;">Download</button>
+            <button class="btn-link" onclick="auth.signOut()">Logout</button>
         </aside>
+
 
         <main>
             <div class="drag-hint">👆 Drag image to position</div>
