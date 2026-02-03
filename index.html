@@ -32,7 +32,7 @@
         aside { 
             background: white; padding: 20px; border-bottom: 1px solid #eee; 
             display: flex; flex-direction: column; gap: 12px; 
-            max-height: 50vh; overflow-y: auto; z-index: 10; 
+            max-height: 45vh; overflow-y: auto; z-index: 10; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
         @media (min-width: 768px) {
@@ -264,7 +264,9 @@
         // ----------------------------------------------------
 
         // GLOBAL VARS
-        var db, auth, currentUser, currentImg, tempSrc;
+                // GLOBAL VARS
+        var db, auth, currentUser, currentImg, tempSrc, uploadedFileName;
+
         var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
 
         // ERROR TRAP
@@ -314,18 +316,24 @@
         }
 
         // APP LOGIC
-        document.getElementById('fInput').addEventListener('change', function(e) {
+         document.getElementById('fInput').addEventListener('change', function(e) {
             if (e.target.files[0]) {
+                var file = e.target.files[0];
+                
+                // Capture name and remove extension (e.g., removes ".png")
+                uploadedFileName = file.name.replace(/\.[^/.]+$/, ""); 
+                
                 var reader = new FileReader();
                 reader.onload = function(evt) { 
                     tempSrc = evt.target.result;
                     document.getElementById('modal-img').src = tempSrc;
                     document.getElementById('modal').style.display = 'flex';
                 };
-                reader.readAsDataURL(e.target.files[0]);
+                reader.readAsDataURL(file);
                 e.target.value = '';
             }
         });
+
 
         function closeModal(shouldPay) {
             document.getElementById('modal').style.display = 'none';
@@ -410,7 +418,7 @@
             return parseFloat(el.value || el.placeholder) || 0;
         }
 
-                function draw() {
+        function draw() {
             var ctx = cvs.getContext('2d');
             
             // 1. GET INPUTS
@@ -580,10 +588,15 @@
 
         function downloadCanvas() {
             var a = document.createElement('a');
-            a.download = 'hakimi-preview.png';
+            
+            // USE THE CAPTURED NAME (or 'design' if no file uploaded)
+            var cleanName = uploadedFileName || "design";
+            a.download = 'hakimi-' + cleanName + '-preview.png';
+            
             a.href = document.getElementById('cvs').toDataURL();
             a.click();
         }
+
                 function activateProTools() {
             if (!currentUser) {
                 alert("Please sign in first!");
