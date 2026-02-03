@@ -91,24 +91,24 @@
             overflow: hidden;
         }
 
+                /* AUTO-FIT CANVAS STYLE */
         canvas { 
             background: white; 
-            box-shadow: 0 5px 25px rgba(0,0,0,0.2); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
             
-            /* FORCE FIT TO SCREEN */
-            max-width: 100%;       /* Width fits phone width */
-            max-height: 80vh;      /* Height fits available vertical space */
-            width: auto !important; 
-            height: auto !important;
+            /* VISUAL SIZE: Fits phone screen perfectly */
+            max-width: 100%;
+            max-height: 60vh; /* Keeps it visible without scrolling */
+            width: auto;
+            height: auto;
             
-            /* Keep Aspect Ratio */
-            object-fit: contain;   
-            
-            /* Interactions */
+            /* INTERACTION */
             cursor: grab; 
             touch-action: none;
+            object-fit: contain;
         }
         canvas:active { cursor: grabbing; }
+
 
 
         
@@ -386,8 +386,10 @@
             return parseFloat(el.value || el.placeholder) || 0;
         }
 
-        function draw() {
+                function draw() {
             var ctx = cvs.getContext('2d');
+            
+            // 1. GET INPUTS
             var sW_raw = document.getElementById('sW').value;
             var sH_raw = document.getElementById('sH').value;
             var tW = getV('tW') || 100;
@@ -403,20 +405,41 @@
             if(cols.length === 0) cols = [tW];
             if(rows.length === 0) rows = [tH];
             
-            var PPI = 10; var P = 40;
+            // 2. SET FIXED HD RESOLUTION (Medium-High Quality)
+            var HD_SIZE = 1500; 
+            cvs.width = HD_SIZE;
+            cvs.height = HD_SIZE;
+            
+            // 3. CALCULATE TOTAL 'VIRTUAL' SIZE (Inches)
             var gW = cols.reduce(function(a,b){ return a+b }, 0);
             var gH = rows.reduce(function(a,b){ return a+b }, 0);
             var vW = gW + ((cols.length-1)*gap);
             var vH = gH + ((rows.length-1)*gap);
             
-            cvs.width = (vW*PPI) + (P*2);
-            cvs.height = (vH*PPI) + (P*2);
+            // 4. AUTO-FIT MATH: Calculate PPI to fit content into 1500px
+            var P = 60; // Padding inside canvas
+            var availableW = cvs.width - (P*2);
+            var availableH = cvs.height - (P*2);
+            
+            var scaleX = availableW / vW;
+            var scaleY = availableH / vH;
+            
+            // Pick the smaller scale so it fits both width and height
+            var PPI = Math.min(scaleX, scaleY);
 
+            // 5. CENTER THE DRAWING
+            // We calculate how much empty space is left and shift the start point
+            var actualDrawW = vW * PPI;
+            var actualDrawH = vH * PPI;
+            var startX = (cvs.width - actualDrawW) / 2;
+            var startY = (cvs.height - actualDrawH) / 2;
+
+            // CLEAR
             ctx.fillStyle = "white"; ctx.fillRect(0,0,cvs.width, cvs.height);
             
-            var cY = P; var accH = 0;
+            var cY = startY; var accH = 0;
             rows.forEach(function(h, rI) {
-                var cX = P; var accW = 0;
+                var cX = startX; var accW = 0;
                 var rShp = shp;
                 if(shp.includes('arch')) {
                     if(shp==='arch-top' && rI!==0) rShp='rect';
@@ -425,18 +448,29 @@
 
                 cols.forEach(function(w, cI) {
                     var dW = w*PPI; var dH = h*PPI;
+                    
                     ctx.save();
+                    
+                    // CLIP & FILL
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.clip();
                     ctx.fillStyle = clr; ctx.fill();
                     
+                    // IMAGE RENDER
                     if(currentImg) {
                         ctx.save();
                         var totalW_px = tW * PPI;
                         var totalH_px = tH * PPI;
-                        var centerX = (cX - (accW * PPI)) + (totalW_px / 2);
-                        var centerY = (cY - (accH * PPI)) + (totalH_px / 2);
                         
-                        ctx.translate(centerX + imgState.x, centerY + imgState.y);
+                        // Center of the current panel
+                        var panelCenterX = cX + (dW/2);
+                        var panelCenterY = cY + (dH/2);
+                        
+                        // Where the center of the total image should be relative to this panel
+                        // (This creates the "Window" effect)
+                        var relCenterX = panelCenterX - ( (accW + (w/2)) * PPI ) + (totalW_px/2);
+                        var relCenterY = panelCenterY - ( (accH + (h/2)) * PPI ) + (totalH_px/2);
+                        
+                        ctx.translate(relCenterX + (imgState.x * (PPI/10)), relCenterY + (imgState.y * (PPI/10)));
                         ctx.scale(imgState.zoom, imgState.zoom);
                         if(mirror) ctx.scale(-1, 1);
                         
@@ -458,12 +492,20 @@
                         ctx.restore();
                     }
                     ctx.restore();
-                    ctx.lineWidth=3; ctx.strokeStyle="#333";
+                    
+                    // STROKE & TEXT
+                    ctx.lineWidth= 4; // Thicker lines for HD
+                    ctx.strokeStyle="#333";
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
-                    ctx.fillStyle="black"; ctx.font="bold 24px Arial"; ctx.textAlign="center";
-                    ctx.fillText(w+'"', cX+dW/2, cY+dH+30);
-                    ctx.save(); ctx.translate(cX-15, cY+dH/2); ctx.rotate(-Math.PI/2);
+                    
+                    // Text scales with PPI so it's readable
+                    var fontSize = Math.max(24, PPI * 0.4); 
+                    ctx.fillStyle="black"; ctx.font="bold "+fontSize+"px Arial"; ctx.textAlign="center";
+                    ctx.fillText(w+'"', cX+dW/2, cY+dH+(fontSize*1.2));
+                    
+                    ctx.save(); ctx.translate(cX-(fontSize*0.5), cY+dH/2); ctx.rotate(-Math.PI/2);
                     ctx.fillText(h+'"', 0, 0); ctx.restore();
+
                     cX += dW + (gap*PPI); accW += w;
                 });
                 cY += (h*PPI) + (gap*PPI); accH += h;
