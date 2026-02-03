@@ -387,7 +387,7 @@
             return parseFloat(el.value || el.placeholder) || 0;
         }
 
-                function draw() {
+        function draw() {
             var ctx = cvs.getContext('2d');
             
             // 1. GET INPUTS
@@ -406,7 +406,7 @@
             if(cols.length === 0) cols = [tW];
             if(rows.length === 0) rows = [tH];
             
-            // 2. SET FIXED HD RESOLUTION (Medium-High Quality)
+            // 2. SET FIXED HD RESOLUTION
             var HD_SIZE = 1500; 
             cvs.width = HD_SIZE;
             cvs.height = HD_SIZE;
@@ -417,23 +417,24 @@
             var vW = gW + ((cols.length-1)*gap);
             var vH = gH + ((rows.length-1)*gap);
             
-            // 4. AUTO-FIT MATH: Calculate PPI to fit content into 1500px
-            var P = 60; // Padding inside canvas
+            // 4. AUTO-FIT MATH (IMPROVED)
+            var P = 60; // Standard Padding
+            var TextSpace = 100; // EXTRA space at bottom for labels so they don't overflow
+            
             var availableW = cvs.width - (P*2);
-            var availableH = cvs.height - (P*2);
+            var availableH = cvs.height - (P*2) - TextSpace; // Subtract text space from height
             
             var scaleX = availableW / vW;
             var scaleY = availableH / vH;
             
-            // Pick the smaller scale so it fits both width and height
+            // Pick the smaller scale so it fits BOTH width and height safely
             var PPI = Math.min(scaleX, scaleY);
 
             // 5. CENTER THE DRAWING
-            // We calculate how much empty space is left and shift the start point
             var actualDrawW = vW * PPI;
             var actualDrawH = vH * PPI;
             var startX = (cvs.width - actualDrawW) / 2;
-            var startY = (cvs.height - actualDrawH) / 2;
+            var startY = (cvs.height - actualDrawH - TextSpace) / 2; // Shift up slightly to center visual mass
 
             // CLEAR
             ctx.fillStyle = "white"; ctx.fillRect(0,0,cvs.width, cvs.height);
@@ -462,12 +463,9 @@
                         var totalW_px = tW * PPI;
                         var totalH_px = tH * PPI;
                         
-                        // Center of the current panel
                         var panelCenterX = cX + (dW/2);
                         var panelCenterY = cY + (dH/2);
                         
-                        // Where the center of the total image should be relative to this panel
-                        // (This creates the "Window" effect)
                         var relCenterX = panelCenterX - ( (accW + (w/2)) * PPI ) + (totalW_px/2);
                         var relCenterY = panelCenterY - ( (accH + (h/2)) * PPI ) + (totalH_px/2);
                         
@@ -495,11 +493,10 @@
                     ctx.restore();
                     
                     // STROKE & TEXT
-                    ctx.lineWidth= 4; // Thicker lines for HD
+                    ctx.lineWidth= 4; 
                     ctx.strokeStyle="#333";
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
                     
-                    // Text scales with PPI so it's readable
                     var fontSize = Math.max(24, PPI * 0.4); 
                     ctx.fillStyle="black"; ctx.font="bold "+fontSize+"px Arial"; ctx.textAlign="center";
                     ctx.fillText(w+'"', cX+dW/2, cY+dH+(fontSize*1.2));
@@ -512,6 +509,7 @@
                 cY += (h*PPI) + (gap*PPI); accH += h;
             });
         }
+
 
         function trace(ctx, x, y, w, h, t, p) {
             var d = Math.min(h, 10*p);
