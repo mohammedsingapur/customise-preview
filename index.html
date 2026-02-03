@@ -387,7 +387,7 @@
             return parseFloat(el.value || el.placeholder) || 0;
         }
 
-        function draw() {
+                function draw() {
             var ctx = cvs.getContext('2d');
             
             // 1. GET INPUTS
@@ -417,11 +417,11 @@
             var vW = gW + ((cols.length-1)*gap);
             var vH = gH + ((rows.length-1)*gap);
             
-            // 4. SAFE AREA (Padding for labels)
+            // 4. SAFE AREA (Increased padding for BIG text)
             var padTop = 60;
             var padRight = 60;
-            var padLeft = 120;
-            var padBottom = 120;
+            var padLeft = 180;   // Increased from 120 -> 180
+            var padBottom = 180; // Increased from 120 -> 180
             
             var safeW = cvs.width - (padLeft + padRight);
             var safeH = cvs.height - (padTop + padBottom);
@@ -498,36 +498,36 @@
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI); ctx.stroke();
                     
                     // D. DIMENSION LINES & TEXT
-                    // MATCH UI FONT: 40px on HD canvas ~= 11px on Screen
-                    var fontSize = 40; 
+                    // BIGGER FONT SIZE: 80px (2x previous)
+                    var fontSize = 80; 
                     var fontStack = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
                     
-                    ctx.fillStyle = "#374151"; // Matches UI Label Color
+                    ctx.fillStyle = "#374151"; 
                     ctx.font = "bold " + fontSize + "px " + fontStack; 
                     ctx.textAlign = "center";
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = "#6b7280"; // Matches UI Border Color
+                    ctx.lineWidth = 3; // Thicker lines for bigger text
+                    ctx.strokeStyle = "#6b7280"; 
 
                     // 1. WIDTH LINE (Bottom)
-                    var lineY = cY + dH + 20; 
-                    var tickH = 8;
+                    var lineY = cY + dH + 30; // Pushed down further
+                    var tickH = 12;
                     
                     ctx.beginPath();
-                    ctx.moveTo(cX, lineY); ctx.lineTo(cX + dW, lineY); // Line
-                    ctx.moveTo(cX, lineY - tickH); ctx.lineTo(cX, lineY + tickH); // Tick L
-                    ctx.moveTo(cX + dW, lineY - tickH); ctx.lineTo(cX + dW, lineY + tickH); // Tick R
+                    ctx.moveTo(cX, lineY); ctx.lineTo(cX + dW, lineY); 
+                    ctx.moveTo(cX, lineY - tickH); ctx.lineTo(cX, lineY + tickH); 
+                    ctx.moveTo(cX + dW, lineY - tickH); ctx.lineTo(cX + dW, lineY + tickH); 
                     ctx.stroke();
 
                     // Text
-                    ctx.fillText(w + '"', cX + dW/2, lineY + fontSize + 8);
+                    ctx.fillText(w + '"', cX + dW/2, lineY + fontSize + 10);
                     
                     // 2. HEIGHT LINE (Left)
-                    var lineX = cX - 20;
+                    var lineX = cX - 30; // Pushed left further
                     
                     ctx.beginPath();
-                    ctx.moveTo(lineX, cY); ctx.lineTo(lineX, cY + dH); // Line
-                    ctx.moveTo(lineX - tickH, cY); ctx.lineTo(lineX + tickH, cY); // Tick T
-                    ctx.moveTo(lineX - tickH, cY + dH); ctx.lineTo(lineX + tickH, cY + dH); // Tick B
+                    ctx.moveTo(lineX, cY); ctx.lineTo(lineX, cY + dH); 
+                    ctx.moveTo(lineX - tickH, cY); ctx.lineTo(lineX + tickH, cY); 
+                    ctx.moveTo(lineX - tickH, cY + dH); ctx.lineTo(lineX + tickH, cY + dH); 
                     ctx.stroke();
 
                     // Text (Rotated)
