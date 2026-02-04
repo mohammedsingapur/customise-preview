@@ -166,9 +166,10 @@
 
             <label>UPLOAD</label>
             <input type="file" id="fInput" hidden>
-            <div class="btn-upload" onclick="document.getElementById('fInput').click()">
+            <div class="btn-upload" onclick="handleUploadClick()">
                 <span>📂 Choose File (4 Credits)</span>
             </div>
+
 
             <div class="row">
                 <div class="col">
@@ -628,7 +629,28 @@
                 alert(err);
                 btn.innerHTML = originalText; // Reset button text if failed
             });
-                }
+        }
+        function handleUploadClick() {
+            // 1. Trigger the file selector
+            document.getElementById('fInput').click();
+
+            // 2. Check if Pro Tools are currently unlocked (Button is hidden)
+            var btn = document.getElementById('btn-pro-tools');
+            var box = document.getElementById('pro-tools-box');
+
+            if (btn.style.display === 'none') {
+                // RESET: Lock the tools again
+                btn.style.display = 'flex';  // Show the "Pro Tools" button
+                btn.innerText = "🔓 Pro Tools (2 Credits)"; // Ensure text is correct
+                box.style.display = 'none';  // Hide the tools box
+                
+                // Clear the values so the new image doesn't start split
+                document.getElementById('sW').value = '';
+                document.getElementById('sH').value = '';
+                document.getElementById('gap').value = '';
+            }
+        }
+        
         
     </script>
 </body>
