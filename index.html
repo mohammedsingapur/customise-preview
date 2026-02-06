@@ -285,13 +285,41 @@
         } catch (e) { alert("Config Error: " + e.message); }
 
         // LOGIN
-        function googleLogin() {
+       function googleLogin() {
+            if (!auth) { alert("Firebase not ready. Check internet."); return; }
+            
+            var msg = document.getElementById('login-msg');
+            msg.innerText = "Contacting Google...";
+            
             var provider = new firebase.auth.GoogleAuthProvider();
-            document.getElementById('login-msg').innerText = "Working...";
-            auth.signInWithPopup(provider).catch(function(error) {
-                document.getElementById('login-msg').innerText = error.message;
-            });
+            
+            // Force popup to show account selection
+            provider.setCustomParameters({ prompt: 'select_account' });
+
+            auth.signInWithPopup(provider)
+                .then(function(result) {
+                    msg.innerText = "Success! Logging in...";
+                })
+                .catch(function(error) {
+                    console.error("Login Error:", error);
+                    msg.innerText = "Error: " + error.code;
+                    
+                    // DETECT SPECIFIC SETTING ERRORS
+                    if (error.code === 'auth/unauthorized-domain') {
+                        alert("⛔ BLOCKING ERROR: Domain Unauthorized\n\nFIX: Go to Firebase Console -> Auth -> Settings -> Authorized Domains.\nAdd this link: mohammedsingapur.github.io");
+                    } 
+                    else if (error.message.includes("OAuth")) {
+                        alert("⛔ BLOCKING ERROR: OAuth Not Configured\n\nFIX: Go to Google Cloud Console -> OAuth Consent Screen.\n1. Add Support Email.\n2. Add App Name.\n3. Publish App.");
+                    }
+                    else if (error.code === 'auth/operation-not-allowed') {
+                        alert("⛔ BLOCKING ERROR: Google Sign-in Disabled\n\nFIX: Go to Firebase Console -> Auth -> Sign-in Method.\nEnable 'Google'.");
+                    }
+                    else {
+                        alert("Login Failed:\n" + error.message);
+                    }
+                });
         }
+
 
         // AUTH LISTENER
         if (auth) {
