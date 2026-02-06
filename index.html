@@ -128,6 +128,8 @@
 
         var db, auth, currentUser, currentImg, tempSrc, uploadedFileName;
         var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
+        var hiddenBlocks = {}; // Stores which blocks are plain color
+        
 
         try {
             if(typeof firebase === 'undefined') throw new Error("Firebase SDK not loaded!");
@@ -273,28 +275,25 @@
             var ctx = cvs.getContext('2d');
             
             // 1. GET VALUES
-            var tW = getV('tW') || 100; // Primary Width
-            var tH = getV('tH') || 90;  // Primary Height
+            var tW = getV('tW') || 100;
+            var tH = getV('tH') || 90;
             var gap = getV('gap') || 0;
             var aDepth = getV('archDepth') || 10;
             
-            // Zoom & Shape
             var zoomLevel = parseFloat(document.getElementById('zoom').value) || 1.0;
             var currentShp = document.getElementById('shp').value;
             var depthBtn = document.getElementById('btn-arch-depth');
             if(depthBtn) depthBtn.style.display = currentShp.includes('arch') ? 'flex' : 'none';
 
-            // 2. CALCULATE WALL LAYOUT (Splits)
+            // 2. LAYOUT
             var sW = document.getElementById('sW').value;
             var sH = document.getElementById('sH').value;
             var cols = sW ? sW.split(',').map(Number) : [tW];
             var rows = sH ? sH.split(',').map(Number) : [tH];
             
-            // Virtual Wall Size (Total size including all splits)
             var vW = cols.reduce((a,b)=>a+b,0) + (cols.length-1)*gap;
             var vH = rows.reduce((a,b)=>a+b,0) + (rows.length-1)*gap;
             
-            // 3. CANVAS PPI SETUP
             var HD = 1500; cvs.width = HD; cvs.height = HD;
             var pad = 100, safeW = HD - 2*pad, safeH = HD - 2*pad;
             var PPI = Math.min(safeW/vW, safeH/vH);
@@ -302,74 +301,60 @@
             var startX = pad + (safeW - vW*PPI)/2;
             var startY = pad + (safeH - vH*PPI)/2;
             
-            // 4. IMAGE SIZING LOGIC (Crucial Update)
+            // 3. IMAGE PARAMS
             var imgParams = null;
             if(currentImg) {
-                // Determine sizing based on PRIMARY inputs (tW/tH), NOT the full split wall
                 var primaryW_px = tW * PPI;
                 var primaryH_px = tH * PPI;
-                
-                // Calculate Center of the Wall (Default position)
-                var wallTotalW_px = vW * PPI;
-                var wallTotalH_px = vH * PPI;
-                var wallCenterX = startX + wallTotalW_px / 2;
-                var wallCenterY = startY + wallTotalH_px / 2;
+                var wallCenterX = startX + (vW * PPI) / 2;
+                var wallCenterY = startY + (vH * PPI) / 2;
 
                 var fit = document.getElementById('fitMode').value;
                 var drawW, drawH;
                 var imgRatio = currentImg.width / currentImg.height;
                 var targetRatio = primaryW_px / primaryH_px;
 
-                // Fit Logic against PRIMARY size
-                if (fit === 'stretch') {
-                    drawW = primaryW_px; drawH = primaryH_px;
-                } else if (fit === 'contain') {
+                if (fit === 'stretch') { drawW = primaryW_px; drawH = primaryH_px; } 
+                else if (fit === 'contain') {
                     if (imgRatio > targetRatio) { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
                     else { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
-                } else { // Cover
+                } else { 
                     if (imgRatio > targetRatio) { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
                     else { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
                 }
-
                 imgParams = { gx: wallCenterX, gy: wallCenterY, w: drawW, h: drawH };
             }
 
-            // 5. DRAWING LOOP
+            // 4. DRAW LOOP
             ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD);
             
             var cY = startY;
             rows.forEach(function(h, rI){
                 var cX = startX;
                 
-                // Arch Logic (Top/Bottom only)
                 var rShp = currentShp;
                 if(currentShp === 'arch-top' && rI !== 0) rShp = 'rect';
                 if(currentShp === 'arch-bottom' && rI !== rows.length - 1) rShp = 'rect';
 
-                cols.forEach(function(w){
+                cols.forEach(function(w, cI){
                     var dW = w*PPI, dH = h*PPI;
                     
                     ctx.save();
-                    // A. CLIP & FILL BACKGROUND
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.clip();
                     ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
                     
-                    // B. DRAW IMAGE
-                    if(imgParams) {
+                    // --- NEW: CHECK HIDDEN BLOCKS ---
+                    // If block is NOT hidden, draw the image
+                    if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
                         ctx.save();
-                        // Move to Global Center + User Drag
                         ctx.translate(imgParams.gx + imgState.x, imgParams.gy + imgState.y);
-                        
-                        // Apply Zoom & Mirror
                         ctx.scale(zoomLevel, zoomLevel);
                         if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
-                        
                         ctx.drawImage(currentImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
                         ctx.restore();
                     }
                     ctx.restore();
                     
-                    // C. STROKE & TEXT
                     ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
                     
@@ -383,6 +368,7 @@
                 cY += h*PPI + gap*PPI;
             });
         }
+
 
 
 
@@ -407,7 +393,53 @@
             ctx.closePath();
         }
 
-        function downloadCanvas(){var a=document.createElement('a'); a.download='pnp-'+(uploadedFileName||'design')+'.png'; a.href=cvs.toDataURL(); a.click();}
+    function downloadCanvas(){var a=document.createElement('a'); a.download='pnp-'+(uploadedFileName||'design')+'.png'; a.href=cvs.toDataURL(); a.click();}
+                // --- DOUBLE TAP HANDLER ---
+    cvs.addEventListener('dblclick', function(e) {
+            // 1. Convert Screen Click to Canvas Coordinates (1500px scale)
+            var rect = cvs.getBoundingClientRect();
+            var scaleX = cvs.width / rect.width;
+            var scaleY = cvs.height / rect.height;
+            var x = (e.clientX - rect.left) * scaleX;
+            var y = (e.clientY - rect.top) * scaleY;
+
+            // 2. Re-calculate Grid Positions (Same math as Draw function)
+            var tW=getV('tW')||100, tH=getV('tH')||90, gap=getV('gap')||0;
+            var sW=document.getElementById('sW').value, sH=document.getElementById('sH').value;
+            var cols=sW?sW.split(',').map(Number):[tW], rows=sH?sH.split(',').map(Number):[tH];
+            
+            var HD=1500;
+            var vW=cols.reduce((a,b)=>a+b,0)+(cols.length-1)*gap;
+            var vH=rows.reduce((a,b)=>a+b,0)+(rows.length-1)*gap;
+            var pad=100, safeW=HD-2*pad, safeH=HD-2*pad;
+            var PPI=Math.min(safeW/vW, safeH/vH);
+            var startX=pad+(safeW-vW*PPI)/2, startY=pad+(safeH-vH*PPI)/2;
+
+            // 3. Find which block was clicked
+            var cY = startY;
+            for(var rI=0; rI<rows.length; rI++) {
+                var h = rows[rI];
+                var cX = startX;
+                for(var cI=0; cI<cols.length; cI++) {
+                    var w = cols[cI];
+                    var dW = w*PPI, dH = h*PPI;
+                    
+                    // Check collision
+                    if(x >= cX && x <= cX+dW && y >= cY && y <= cY+dH) {
+                        var key = rI + '-' + cI;
+                        // Toggle Logic
+                        if(hiddenBlocks[key]) delete hiddenBlocks[key]; // Show Image
+                        else hiddenBlocks[key] = true; // Hide Image
+                        
+                        draw(); // Redraw immediately
+                        return; // Stop checking
+                    }
+                    cX += dW + gap*PPI;
+                }
+                cY += h*PPI + gap*PPI;
+            }
+        });
+        
     </script>
 </body>
 </html>
