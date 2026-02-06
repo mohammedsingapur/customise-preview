@@ -3,24 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro v33 - Deep Debug</title>
+    <title>Hakimi Pro v34 - Final</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
     <style>
-        /* --- DEBUG OVERLAY (Always on Top) --- */
-        #debug-console {
-            position: fixed; top: 0; left: 0; width: 100%; height: 120px;
-            background: rgba(50, 0, 0, 0.95); color: #00ff00;
-            font-family: monospace; font-size: 10px; padding: 10px;
-            z-index: 999999; overflow-y: scroll; border-bottom: 2px solid red;
-            pointer-events: none; /* Let clicks pass through */
-        }
-        .log-err { color: #ff9999; font-weight: bold; border-bottom: 1px solid #550000; }
-        .log-warn { color: yellow; }
-
         /* --- DARK THEME BASE --- */
         :root { --bg: #000; --panel: #1a1a1a; --text: #eee; --acc: #bb86fc; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -59,8 +48,6 @@
 </head>
 <body>
 
-    <div id="debug-console">waiting for logs...<br></div>
-
     <div class="hidden-controls">
         <input type="file" id="fInput">
         <input type="number" id="tW" value="100"><input type="number" id="tH" value="90">
@@ -74,9 +61,9 @@
     <div id="login-view">
         <div class="auth-box">
             <h2 style="color:#fff; margin:0;">Hakimi Pro</h2>
-            <p style="color:#666; font-size:12px;">v33 Debug</p>
+            <p style="color:#666; font-size:12px;">Dark Edition</p>
             
-            <button class="btn-google" id="btnLogin" onclick="debugLogin()">
+            <button class="btn-google" id="btnLogin" onclick="appLogin()">
                 <span>📂</span> Sign in with Google
             </button>
             
@@ -123,20 +110,6 @@
     </div>
 
     <script>
-        // --- LOGGER (Captures EVERYTHING) ---
-        var consoleBox = document.getElementById('debug-console');
-        function log(msg, type) {
-            var line = document.createElement('div');
-            line.className = type === 'error' ? 'log-err' : (type==='warn'?'log-warn':'');
-            line.innerText = "> " + msg;
-            consoleBox.appendChild(line);
-            consoleBox.scrollTop = consoleBox.scrollHeight;
-            console.log(msg); // Also print to real console
-        }
-        
-        window.onerror = function(msg, url, line) { log("CRITICAL JS ERROR (L"+line+"): " + msg, 'error'); };
-        window.addEventListener('unhandledrejection', function(e) { log("PROMISE FAIL: " + e.reason, 'error'); });
-
         // --- FIREBASE CONFIG ---
         var firebaseConfig = {
             apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
@@ -151,57 +124,38 @@
         var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
 
         try {
-            log("Initializing Firebase...");
             if(typeof firebase === 'undefined') throw new Error("Firebase SDK not loaded!");
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             auth = firebase.auth();
-            log("Firebase Loaded OK.");
-        } catch(e) { log("SETUP ERROR: " + e.message, 'error'); }
+        } catch(e) { alert("App Error: " + e.message); }
 
-
-        // --- LOGIN DEBUGGER ---
-        function debugLogin() {
+        // --- LOGIN LOGIC ---
+        function appLogin() {
             var btn = document.getElementById('btnLogin');
             var stat = document.getElementById('login-status');
             
-            // Visual Feedback
-            btn.style.background = "yellow";
-            btn.style.color = "black";
             btn.innerText = "Processing...";
-            log("Button Touched. Starting Login process...");
+            stat.innerText = "Connecting to Google...";
 
-            if(!auth) {
-                log("FAIL: Auth object missing. Firebase didn't load.", 'error');
-                stat.innerText = "Error: Firebase not loaded.";
-                return;
-            }
+            if(!auth) { stat.innerText = "Error: Firebase not loaded."; return; }
 
             var provider = new firebase.auth.GoogleAuthProvider();
-            
-            // Try Redirect (Better for Mobile)
-            log("Attempting Redirect Login...");
+            // Using Redirect as it is safer for mobile
             auth.signInWithRedirect(provider).catch(function(err){
-                log("LOGIN ERROR: " + err.code + " | " + err.message, 'error');
                 stat.innerText = err.message;
-                btn.style.background = "red";
-                btn.style.color = "white";
-                btn.innerText = "Retry Sign In";
+                btn.innerText = "Try Again";
+                alert("Login Error: " + err.message);
             });
         }
 
-        // --- AUTH LISTENER ---
         if(auth) {
-            // Check for redirect result (when returning from Google)
-            auth.getRedirectResult().then(function(result) {
-                if (result.user) log("Redirect Login Successful: " + result.user.email);
-            }).catch(function(error) {
-                log("Redirect Result Error: " + error.code, 'error');
+            auth.getRedirectResult().catch(function(error) {
+                console.error(error);
             });
 
             auth.onAuthStateChanged(function(user) {
                 if(user) {
-                    log("User Authenticated: " + user.email);
                     currentUser = user;
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('app-view').style.display = 'flex';
@@ -213,7 +167,6 @@
                     });
                     setTimeout(draw, 500);
                 } else {
-                    log("No User Signed In. Showing Login Screen.");
                     document.getElementById('login-view').style.display = 'flex';
                     document.getElementById('app-view').style.display = 'none';
                 }
