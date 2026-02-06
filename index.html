@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro v34 - Final</title>
+    <title>PNP</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -61,8 +61,8 @@
 
     <div id="login-view">
         <div class="auth-box">
-            <h2 style="color:#fff; margin:0;">Hakimi Pro</h2>
-            <p style="color:#666; font-size:12px;">Dark Edition</p>
+            <h2 style="color:#fff; margin:0;">PNP</h2>
+            <p style="color:#666; font-size:12px;">Pixel N Preview</p>
             
             <button class="btn-google" id="btnLogin" onclick="appLogin()">
                 <span>📂</span> Sign in with Google
@@ -85,10 +85,10 @@
             <div class="tool-group" onclick="cycleZoom()"><div class="tool-btn">🔍</div><span class="tool-label" id="lbl-zoom">1.0x</span></div>
             <div class="tool-group" onclick="cycleFit()"><div class="tool-btn">🖼️</div><span class="tool-label" id="lbl-fit">Cover</span></div>
             <div class="tool-group" onclick="toggleMirror()"><div class="tool-btn">🪞</div><span class="tool-label">Flip</span></div>
-            <div class="tool-group" onclick="cycleShape()"><div class="tool-btn">⬜</div><span class="tool-label" id="lbl-shape">Rect</span></div>
+            <div class="tool-group" onclick="cycleShape()"><div class="tool-btn">⬜<br>shape</div><span class="tool-label" id="lbl-shape">Rect</span></div>
             <div class="tool-group" id="btn-arch-depth" style="display:none;" onclick="promptVal('archDepth', 'Arch Depth (inches)')">
             <div class="tool-btn">📐</div>
-            <span class="tool-label">Depth</span>
+            <span class="tool-label">Arch<br>Depth</span>
             </div>
             
             <div class="tool-group"><div class="tool-btn" style="position:relative;"><input type="color" oninput="updateColor(this.value)" style="position:absolute;opacity:0;width:100%;height:100%;"><div style="pointer-events:none;">🎨</div></div><span class="tool-label">Color</span></div>
