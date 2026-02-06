@@ -53,6 +53,7 @@
         <input type="number" id="tW" value="100"><input type="number" id="tH" value="90">
         <input type="text" id="sW"><input type="text" id="sH"><input type="number" id="gap" value="2">
         <select id="shp"><option value="rect">Rect</option><option value="circle">Circle</option><option value="arch-top">Arch Top</option><option value="arch-bottom">Arch Bottom</option></select>
+        <input type="number" id="archDepth" value="10">
         <input type="range" id="zoom" min="0.1" max="3" step="0.1" value="1">
         <input type="checkbox" id="mirror"><select id="fitMode"><option value="cover">Cover</option><option value="stretch">Stretch</option><option value="contain">Contain</option></select>
         <input type="color" id="clr" value="#ffffff">
@@ -85,6 +86,11 @@
             <div class="tool-group" onclick="cycleFit()"><div class="tool-btn">🖼️</div><span class="tool-label" id="lbl-fit">Cover</span></div>
             <div class="tool-group" onclick="toggleMirror()"><div class="tool-btn">🪞</div><span class="tool-label">Flip</span></div>
             <div class="tool-group" onclick="cycleShape()"><div class="tool-btn">⬜</div><span class="tool-label" id="lbl-shape">Rect</span></div>
+            <div class="tool-group" id="btn-arch-depth" style="display:none;" onclick="promptVal('archDepth', 'Arch Depth (inches)')">
+            <div class="tool-btn">📐</div>
+            <span class="tool-label">Depth</span>
+            </div>
+            
             <div class="tool-group"><div class="tool-btn" style="position:relative;"><input type="color" oninput="updateColor(this.value)" style="position:absolute;opacity:0;width:100%;height:100%;"><div style="pointer-events:none;">🎨</div></div><span class="tool-label">Color</span></div>
             
             <div class="tool-group" id="btn-lock" onclick="unlockPro()"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">🔓</div><span class="tool-label" style="color:var(--acc);">Unlock</span></div>
@@ -265,10 +271,24 @@
 
         function draw() {
             var ctx = cvs.getContext('2d');
+            
+            // 1. GET VALUES
             var tW=getV('tW')||100, tH=getV('tH')||90, gap=getV('gap')||0;
+            var aDepth = getV('archDepth')||10; // NEW: Get Arch Depth
+            
             var sW=document.getElementById('sW').value, sH=document.getElementById('sH').value;
             var cols=sW?sW.split(',').map(Number):[tW], rows=sH?sH.split(',').map(Number):[tH];
             
+            // 2. TOGGLE DEPTH BUTTON VISIBILITY
+            var currentShp = document.getElementById('shp').value;
+            var depthBtn = document.getElementById('btn-arch-depth');
+            if(currentShp.includes('arch')) {
+                depthBtn.style.display = 'flex';
+            } else {
+                depthBtn.style.display = 'none';
+            }
+
+            // 3. SETUP CANVAS
             var HD=1500; cvs.width=HD; cvs.height=HD;
             var vW=cols.reduce((a,b)=>a+b,0)+(cols.length-1)*gap;
             var vH=rows.reduce((a,b)=>a+b,0)+(rows.length-1)*gap;
@@ -277,15 +297,20 @@
             var startX=pad+(safeW-vW*PPI)/2, startY=pad+(safeH-vH*PPI)/2;
             
             ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD);
+            
             var cY=startY;
             rows.forEach(function(h, rI){
                 var cX=startX;
-                var rShp=document.getElementById('shp').value;
+                var rShp=currentShp;
+                // Only top/bottom rows get arch if selected
                 if(rShp.includes('arch') && rI!==0 && rI!==rows.length-1) rShp='rect';
+                
                 cols.forEach(function(w){
                     var dW=w*PPI, dH=h*PPI;
+                    
                     ctx.save();
-                    ctx.beginPath(); trace(ctx,cX,cY,dW,dH,rShp,PPI); ctx.clip();
+                    // Pass aDepth to trace
+                    ctx.beginPath(); trace(ctx,cX,cY,dW,dH,rShp,PPI,aDepth); ctx.clip();
                     ctx.fillStyle=document.getElementById('clr').value; ctx.fill();
                     
                     if(currentImg) {
@@ -300,23 +325,42 @@
                         ctx.restore();
                     }
                     ctx.restore();
-                    ctx.strokeStyle="#333"; ctx.lineWidth=4; ctx.beginPath(); trace(ctx,cX,cY,dW,dH,rShp,PPI); ctx.stroke();
+                    
+                    // Stroke
+                    ctx.strokeStyle="#333"; ctx.lineWidth=4; 
+                    ctx.beginPath(); trace(ctx,cX,cY,dW,dH,rShp,PPI,aDepth); ctx.stroke();
+                    
+                    // Text
                     ctx.fillStyle="#333"; ctx.font="bold 60px sans-serif"; ctx.textAlign="center";
                     ctx.fillText(w+'"', cX+dW/2, cY+dH+70);
                     ctx.save(); ctx.translate(cX-30, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"', 0,0); ctx.restore();
+                    
                     cX+=dW+gap*PPI;
                 });
                 cY+=h*PPI+gap*PPI;
             });
         }
-        function trace(ctx,x,y,w,h,t,p){
-            var d=Math.min(h,10*p);
+
+        function trace(ctx,x,y,w,h,t,p,depthIn){
+            // Use user depth * PPI, or default to 10 inches if missing
+            var d = Math.min(h, (depthIn||10)*p); 
+            
             if(t==='rect') ctx.rect(x,y,w,h);
             else if(t==='circle') ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,2*Math.PI);
-            else if(t==='arch-top'){ctx.moveTo(x,y+h);ctx.lineTo(x,y+d);ctx.bezierCurveTo(x,y,x+w,y,x+w,y+d);ctx.lineTo(x+w,y+h);}
-            else if(t==='arch-bottom'){ctx.moveTo(x,y);ctx.lineTo(x+w,y);ctx.lineTo(x+w,y+h-d);ctx.bezierCurveTo(x+w,y+h,x,y+h,x,y+h-d);ctx.lineTo(x,y);}
+            else if(t==='arch-top'){
+                ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); 
+                ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); 
+                ctx.lineTo(x+w,y+h);
+            }
+            else if(t==='arch-bottom'){
+                ctx.moveTo(x,y); ctx.lineTo(x+w,y); 
+                ctx.lineTo(x+w,y+h-d); 
+                ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); 
+                ctx.lineTo(x,y);
+            }
             ctx.closePath();
         }
+
         function downloadCanvas(){var a=document.createElement('a'); a.download='hakimi-'+(uploadedFileName||'design')+'.png'; a.href=cvs.toDataURL(); a.click();}
     </script>
 </body>
