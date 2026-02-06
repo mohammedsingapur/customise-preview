@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro v27 - DEBUG MODE</title>
+    <title>Hakimi Pro v28 - Fixed</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -32,20 +32,18 @@
             display: flex; flex-direction: column;
         }
 
-        /* --- DEBUG CONSOLE (NEW) --- */
-        #debug-console {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 150px;
-            background: rgba(0,0,0,0.9); border-top: 2px solid #ff4444;
-            color: #00ff00; font-family: monospace; font-size: 11px;
-            padding: 10px; overflow-y: auto; z-index: 20000;
-            display: none; /* Hidden by default, shows on error */
+        /* --- DEBUG CONSOLE (Top Fixed) --- */
+        #debug-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: auto; max-height: 100px;
+            background: rgba(50, 0, 0, 0.9); border-bottom: 2px solid red;
+            color: #ff9999; font-family: monospace; font-size: 10px;
+            padding: 5px; overflow-y: auto; z-index: 200000;
+            display: none; pointer-events: none; /* Let clicks pass through unless selecting text */
         }
-        .log-line { margin-bottom: 2px; border-bottom: 1px solid #333; }
-        .log-err { color: #ff4444; font-weight: bold; }
 
-        /* --- LOGIN VIEW --- */
+        /* --- LOGIN SCREEN (Highest Z-Index) --- */
         #login-view { 
-            position: fixed; inset: 0; z-index: 9999; 
+            position: fixed; inset: 0; z-index: 100000; 
             background: var(--bg-color); 
             display: flex; justify-content: center; align-items: center; 
         }
@@ -53,19 +51,21 @@
             width: 300px; padding: 30px; text-align: center; 
             background: var(--tool-bg); 
             border-radius: 12px; border: 1px solid var(--border); 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         }
         .btn-google {
-            width: 100%; padding: 12px; background: #4285F4; color: white; 
+            width: 100%; padding: 15px; background: #4285F4; color: white; 
             border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px;
             display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px;
         }
+        .btn-google:active { transform: scale(0.98); }
 
-        /* --- APP LAYOUT --- */
+        /* --- APP LAYOUT (80/20) --- */
         #app-view { display: none; width: 100%; height: 100%; flex-direction: column; }
 
+        /* 1. CANVAS AREA (80vh) */
         .canvas-area {
-            flex: 1; width: 100%;
+            height: 80vh; width: 100%;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             background: radial-gradient(circle at center, #2c2c2c 0%, #000 100%);
@@ -76,11 +76,11 @@
         canvas { 
             background: white; 
             box-shadow: 0 10px 40px rgba(0,0,0,0.6); 
-            max-width: 95%; max-height: 80vh; 
+            max-width: 95%; max-height: 90%; 
             cursor: grab; border: 1px solid #333;
         }
-        canvas:active { cursor: grabbing; }
 
+        /* HUD */
         .hud-bar {
             position: absolute; top: 10px; left: 10px; right: 10px;
             display: flex; justify-content: space-between; align-items: center;
@@ -89,30 +89,34 @@
         .user-tag { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 20px; font-size: 12px; color: #fff; }
         .credit-tag { background: var(--accent); color: #000; font-weight: bold; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
 
+        /* 2. TOOLS AREA (20vh) */
         .tools-area {
-            height: 22vh; min-height: 140px;
-            width: 100%; background-color: var(--tool-bg);
+            height: 20vh; width: 100%; background-color: var(--tool-bg);
             border-top: 1px solid var(--border);
             display: flex; align-items: center;
-            overflow-x: auto; padding: 0 15px; gap: 15px;
+            overflow-x: auto; padding: 0 15px; gap: 20px;
         }
+        /* Hide scrollbar */
         .tools-area::-webkit-scrollbar { display: none; }
+        .tools-area { -ms-overflow-style: none; scrollbar-width: none; }
 
+        /* BUTTONS */
         .tool-group { display: flex; flex-direction: column; align-items: center; min-width: 65px; cursor: pointer; }
         .tool-btn {
-            width: 50px; height: 50px; background-color: var(--btn-bg);
+            width: 55px; height: 55px; background-color: var(--btn-bg);
             border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            font-size: 20px; margin-bottom: 6px; border: 1px solid var(--border); color: white;
+            font-size: 22px; margin-bottom: 6px; border: 1px solid var(--border); color: white;
             transition: 0.2s;
         }
         .tool-btn:active { transform: scale(0.9); background-color: #555; }
-        .tool-label { font-size: 10px; color: #aaa; text-align: center; white-space: nowrap; }
+        .tool-label { font-size: 11px; color: #aaa; text-align: center; white-space: nowrap; }
         
         .pro-tool .tool-btn { border: 2px solid var(--accent); color: var(--accent); }
-        .separator { width: 1px; height: 40px; background: #444; min-width: 1px; margin: 0 5px; }
+        .pro-tool .tool-label { color: var(--accent); font-weight: bold; }
+        .separator { width: 1px; height: 50%; background: #444; min-width: 1px; }
 
+        /* MODAL & HIDDEN CONTROLS */
         .hidden-controls { display: none; }
-
         #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10001; display: none; justify-content: center; align-items: center; }
         .modal-box { background: var(--tool-bg); width: 85%; max-width: 320px; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
         .modal-img { max-width: 100%; height: 180px; object-fit: contain; margin: 15px 0; border: 1px solid #444; background: #000; }
@@ -122,9 +126,7 @@
 </head>
 <body>
 
-    <div id="debug-console">
-        <div style="position:sticky; top:0; background:#330000; padding:2px; font-weight:bold; border-bottom:1px solid red;">SYSTEM LOGS (Take Screenshot if Error)</div>
-    </div>
+    <div id="debug-overlay">SYSTEM LOG:<br></div>
 
     <div class="hidden-controls">
         <input type="file" id="fInput">
@@ -142,10 +144,10 @@
 
     <div id="login-view">
         <div class="auth-box">
-            <h2 style="color:white; margin:0;">Hakimi Pro</h2>
-            <p style="color:#888; font-size:12px;">Dark Edition</p>
-            <button class="btn-google" onclick="googleLogin()"><span>📂</span> Sign in with Google</button>
-            <p id="login-msg" style="color:#ff6b6b; font-size:12px; margin-top:15px; font-family:monospace;"></p>
+            <h2 style="color:white; margin:0 0 10px 0;">Hakimi Pro</h2>
+            <p style="color:#888; font-size:12px; margin-bottom:20px;">Dark Mode v28</p>
+            <button class="btn-google" id="btnLogin"><span>📂</span> Sign in with Google</button>
+            <p id="login-msg" style="color:#ff6b6b; font-size:12px; margin-top:15px; font-family:monospace; word-break:break-word;"></p>
         </div>
     </div>
 
@@ -163,6 +165,7 @@
                 <div class="tool-btn" style="background:var(--accent); color:black;">📂</div><span class="tool-label">Upload</span>
             </div>
             <div class="separator"></div>
+            
             <div class="tool-group" onclick="promptVal('tW', 'Width (in)')">
                 <div class="tool-btn">↔️</div><span class="tool-label">Width</span>
             </div>
@@ -170,6 +173,7 @@
                 <div class="tool-btn">↕️</div><span class="tool-label">Height</span>
             </div>
             <div class="separator"></div>
+
             <div class="tool-group" onclick="cycleZoom()">
                 <div class="tool-btn">🔍</div><span class="tool-label" id="lbl-zoom">1.0x</span>
             </div>
@@ -190,10 +194,11 @@
                 <span class="tool-label">Color</span>
             </div>
             <div class="separator"></div>
-            <div class="tool-group pro-tool" id="btn-pro-tools" onclick="activateProTools()">
+
+            <div class="tool-group pro-tool" id="btn-pro-lock" onclick="activateProTools()">
                 <div class="tool-btn">🔓</div><span class="tool-label">Unlock</span>
             </div>
-            <div id="pro-tools-box" style="display:none; display:flex; gap:15px;">
+            <div id="pro-tools-grp" style="display:none; display:flex; gap:20px;">
                 <div class="tool-group pro-tool" onclick="promptVal('sW', 'Split Widths (e.g. 50,50)')">
                     <div class="tool-btn">✂️</div><span class="tool-label">Split W</span>
                 </div>
@@ -204,6 +209,7 @@
                     <div class="tool-btn">Gap</div><span class="tool-label">Gap</span>
                 </div>
             </div>
+
             <div class="separator"></div>
             <div class="tool-group" onclick="downloadCanvas()">
                 <div class="tool-btn" style="background:#fff; color:#000;">⬇️</div><span class="tool-label">Save</span>
@@ -225,23 +231,25 @@
     </div>
 
     <script>
-        // --- LOGGER FUNCTION ---
-        function log(msg, isError) {
+        // --- 1. ERROR LOGGING SYSTEM ---
+        function sysLog(msg, isError) {
             console.log(msg);
-            var consoleDiv = document.getElementById('debug-console');
-            var line = document.createElement('div');
-            line.className = 'log-line' + (isError ? ' log-err' : '');
-            line.innerText = "> " + msg;
-            consoleDiv.appendChild(line);
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-            if(isError) consoleDiv.style.display = 'block';
+            var d = document.getElementById('debug-overlay');
+            var span = document.createElement('div');
+            span.style.color = isError ? '#ff4444' : '#00ff00';
+            span.innerHTML = (isError ? "❌ " : "ℹ️ ") + msg;
+            d.appendChild(span);
+            if(isError) d.style.display = 'block';
         }
 
         window.onerror = function(msg, url, line) {
-            log("JS Error (Line " + line + "): " + msg, true);
+            sysLog("JS Error (L" + line + "): " + msg, true);
         };
+        window.addEventListener('unhandledrejection', function(event) {
+            sysLog("Promise Error: " + event.reason, true);
+        });
 
-        // 1. FIREBASE CONFIG
+        // --- 2. FIREBASE CONFIG ---
         var firebaseConfig = {
             apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
             authDomain: "customise-previews.firebaseapp.com",
@@ -251,68 +259,54 @@
             appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
         };
 
-        // 2. GLOBAL VARS
+        // --- 3. VARIABLES ---
         var db, auth, currentUser, currentImg, tempSrc, uploadedFileName;
         var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
 
-        // 3. INIT FIREBASE
+        // --- 4. INIT ---
         try {
-            log("Initializing Firebase...");
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             auth = firebase.auth();
-            log("Firebase Initialized.");
-        } catch (e) { log("Firebase Config Error: " + e.message, true); }
+            sysLog("Firebase Initialized.");
+        } catch (e) { sysLog("Config Error: " + e.message, true); }
 
-        // 4. LOGIN LOGIC
-        function googleLogin() {
-            log("Login Button Clicked...");
-            if(!auth) { log("CRITICAL: Auth system missing!", true); return; }
-            
+        // --- 5. LOGIN ---
+        document.getElementById('btnLogin').addEventListener('click', function() {
+            sysLog("Starting Login...");
             var provider = new firebase.auth.GoogleAuthProvider();
-            document.getElementById('login-msg').innerText = "Working...";
+            document.getElementById('login-msg').innerText = "Opening Popup...";
             
             auth.signInWithPopup(provider)
-                .then((result) => {
-                    log("Login Success: " + result.user.email);
-                })
-                .catch(function(error) {
-                    log("Login Failed: " + error.code + " - " + error.message, true);
+                .then((result) => { sysLog("Login Success: " + result.user.email); })
+                .catch((error) => {
+                    sysLog("Login Fail: " + error.code + " " + error.message, true);
                     document.getElementById('login-msg').innerText = error.message;
                 });
-        }
+        });
 
-        // 5. AUTH LISTENER
         if (auth) {
             auth.onAuthStateChanged(function(user) {
                 if (user) {
-                    log("User Detected: " + user.email);
                     currentUser = user;
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('app-view').style.display = 'flex';
                     document.getElementById('userName').innerText = (user.displayName || "User");
                     
                     db.collection('users').doc(user.uid).onSnapshot(function(doc) {
-                        if (!doc.exists) {
-                            log("Creating new user profile...");
-                            db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
-                        } else {
-                            document.getElementById('creditDisplay').innerText = (doc.data().credits || 0) + " Credits";
-                        }
-                    }, function(err) {
-                        log("Database Error: " + err.message, true);
-                    });
+                        if (!doc.exists) db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
+                        else document.getElementById('creditDisplay').innerText = (doc.data().credits || 0) + " Credits";
+                    }, function(e){ sysLog("DB Error: "+e.message, true); });
                     
                     setTimeout(draw, 500);
                 } else {
-                    log("No User Signed In. Showing Login Screen.");
                     document.getElementById('login-view').style.display = 'flex';
                     document.getElementById('app-view').style.display = 'none';
                 }
             });
         }
 
-        // UI HELPERS
+        // --- 6. UI BRIDGE FUNCTIONS ---
         function promptVal(id, text) {
             var el = document.getElementById(id);
             var val = prompt(text, el.value);
@@ -351,18 +345,18 @@
         }
         function handleUploadClick() {
             document.getElementById('fInput').click();
-            var btn = document.getElementById('btn-pro-tools');
-            var box = document.getElementById('pro-tools-box');
+            var btn = document.getElementById('btn-pro-lock');
+            var grp = document.getElementById('pro-tools-grp');
             if(btn.style.display === 'none') {
                  btn.style.display = 'flex'; 
-                 btn.querySelector('.tool-label').innerText = "Unlock (2)";
-                 box.style.display = 'none';
+                 btn.querySelector('.tool-label').innerText = "Unlock";
+                 grp.style.display = 'none';
                  document.getElementById('sW').value = '';
                  document.getElementById('sH').value = '';
             }
         }
 
-        // ORIGINAL LOGIC
+        // --- 7. CORE LOGIC (UNTOUCHED) ---
         document.getElementById('fInput').addEventListener('change', function(e) {
             if (e.target.files[0]) {
                 var file = e.target.files[0];
@@ -399,7 +393,7 @@
                         draw();
                     };
                     img.src = tempSrc;
-                }).catch(function(err) { log("Transaction Error: " + err, true); alert(err); });
+                }).catch(function(err) { alert(err); sysLog(err, true); });
             }
             if(!shouldPay) tempSrc = null;
         }
@@ -420,6 +414,10 @@
             i.src = src;
         }
 
-        // DRAG LOGIC
         var cvs = document.getElementById('cvs');
+        function startDrag(e) {
+            imgState.isDragging = true;
+            imgState.lastX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            imgState.lastY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        }
         
