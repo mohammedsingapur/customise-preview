@@ -9,45 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
-   <style>
-    #debug-screen {
-        position: fixed; top: 0; left: 0; width: 100%; height: 200px;
-        background: rgba(0,0,0,0.85); color: #0f0; font-family: monospace;
-        font-size: 11px; padding: 10px; z-index: 999999; 
-        overflow-y: scroll; pointer-events: none; border-bottom: 2px solid red;
-    }
-    .log-err { color: #ff5555; font-weight: bold; border-bottom: 1px solid #550000; }
-    .log-info { color: #ffff00; }
-</style>
-<div id="debug-screen">SYSTEM LOG STARTED...<br></div>
-<script>
-    (function(){
-        var screen = document.getElementById('debug-screen');
-        function printLog(msg, type) {
-            var l = document.createElement('div');
-            l.className = type === 'error' ? 'log-err' : 'log-info';
-            l.innerHTML = (type==='error'?'❌ ':'ℹ️ ') + msg;
-            screen.appendChild(l);
-            screen.scrollTop = screen.scrollHeight;
-        }
-
-        // 1. Capture Standard JS Errors
-        window.onerror = function(msg, url, line) {
-            printLog("JS Error (L" + line + "): " + msg, 'error');
-        };
-
-        // 2. Capture Promise Rejections (Firebase Auth Errors usually hide here)
-        window.addEventListener('unhandledrejection', function(event) {
-            printLog("Promise Error: " + (event.reason ? event.reason.message : event.reason), 'error');
-        });
-
-        // 3. Override Console.log/error to show on screen
-        var oldLog = console.log;
-        var oldErr = console.error;
-        console.log = function(m) { printLog(m, 'info'); oldLog.apply(console, arguments); };
-        console.error = function(m) { printLog(m, 'error'); oldErr.apply(console, arguments); };
-    })();
-</script>
+   
     
 
     
@@ -167,6 +129,49 @@
         .btn-confirm { width: 100%; padding: 14px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; margin-top: 10px; font-size: 16px; }
         .btn-cancel { width: 100%; padding: 14px; background: #333; color: #fff; border: none; border-radius: 8px; font-weight: bold; margin-top: 8px; }
     </style>
+
+    <style>
+    #debug-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 200px;
+        background: rgba(0,0,0,0.85); color: #0f0; font-family: monospace;
+        font-size: 11px; padding: 10px; z-index: 999999; 
+        overflow-y: scroll; pointer-events: none; border-bottom: 2px solid red;
+    }
+    .log-err { color: #ff5555; font-weight: bold; border-bottom: 1px solid #550000; }
+    .log-info { color: #ffff00; }
+</style>
+<div id="debug-screen">SYSTEM LOG STARTED...<br></div>
+<script>
+    (function(){
+        var screen = document.getElementById('debug-screen');
+        function printLog(msg, type) {
+            var l = document.createElement('div');
+            l.className = type === 'error' ? 'log-err' : 'log-info';
+            l.innerHTML = (type==='error'?'❌ ':'ℹ️ ') + msg;
+            screen.appendChild(l);
+            screen.scrollTop = screen.scrollHeight;
+        }
+
+        // 1. Capture Standard JS Errors
+        window.onerror = function(msg, url, line) {
+            printLog("JS Error (L" + line + "): " + msg, 'error');
+        };
+
+        // 2. Capture Promise Rejections (Firebase Auth Errors usually hide here)
+        window.addEventListener('unhandledrejection', function(event) {
+            printLog("Promise Error: " + (event.reason ? event.reason.message : event.reason), 'error');
+        });
+
+        // 3. Override Console.log/error to show on screen
+        var oldLog = console.log;
+        var oldErr = console.error;
+        console.log = function(m) { printLog(m, 'info'); oldLog.apply(console, arguments); };
+        console.error = function(m) { printLog(m, 'error'); oldErr.apply(console, arguments); };
+    })();
+</script>
+
+
+    
 </head>
 <body>
 
