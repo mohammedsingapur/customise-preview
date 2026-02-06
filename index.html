@@ -3,308 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro v32 - Dark UI</title>
+    <title>Hakimi Pro v33 - Deep Debug</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
-   
-    
-
-    
     <style>
-        /* --- DARK THEME VARIABLES --- */
-        :root {
-            --bg-color: #000000;
-            --tool-bg: #121212;
-            --text-color: #e0e0e0;
-            --accent: #bb86fc; 
-            --btn-bg: #2c2c2c;
-            --border: #333;
+        /* --- DEBUG OVERLAY (Always on Top) --- */
+        #debug-console {
+            position: fixed; top: 0; left: 0; width: 100%; height: 120px;
+            background: rgba(50, 0, 0, 0.95); color: #00ff00;
+            font-family: monospace; font-size: 10px; padding: 10px;
+            z-index: 999999; overflow-y: scroll; border-bottom: 2px solid red;
+            pointer-events: none; /* Let clicks pass through */
         }
+        .log-err { color: #ff9999; font-weight: bold; border-bottom: 1px solid #550000; }
+        .log-warn { color: yellow; }
 
-        /* RESET & BASE */
+        /* --- DARK THEME BASE --- */
+        :root { --bg: #000; --panel: #1a1a1a; --text: #eee; --acc: #bb86fc; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body {
-            margin: 0; padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            height: 100vh; width: 100vw;
-            overflow: hidden;
-            display: flex; flex-direction: column;
-        }
-
-        /* --- DEBUG CONSOLE (Hidden by default) --- */
-        #debug-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100px;
-            background: rgba(0,0,0,0.9); color: #0f0; font-family: monospace;
-            font-size: 10px; padding: 5px; z-index: 999999; 
-            overflow-y: scroll; pointer-events: none; border-bottom: 1px solid red;
-            display: none; 
-        }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
         /* --- LOGIN SCREEN --- */
-        #login-view { 
-            position: fixed; inset: 0; z-index: 5000; 
-            background: var(--bg-color); 
-            display: flex; flex-direction: column; justify-content: center; align-items: center; 
-        }
-        .auth-box { 
-            width: 300px; padding: 30px; text-align: center; 
-            background: var(--tool-bg); 
-            border-radius: 12px; border: 1px solid var(--border); 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        }
+        #login-view { position: fixed; inset: 0; z-index: 5000; background: var(--bg); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .auth-box { width: 300px; padding: 30px; background: var(--panel); border-radius: 12px; border: 1px solid #333; text-align: center; }
+        
         .btn-google {
-            width: 100%; padding: 15px; background: #4285F4; color: white; 
-            border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px;
-            display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px;
+            width: 100%; padding: 15px; background: #4285F4; color: white; border: none; border-radius: 6px; 
+            font-size: 16px; font-weight: bold; margin-top: 15px; cursor: pointer;
+            transition: background 0.1s;
         }
+        .btn-google:active { background: yellow; color: black; transform: scale(0.98); }
 
-        /* --- APP LAYOUT (80/20 SPLIT) --- */
+        /* --- APP LAYOUT (80/20) --- */
         #app-view { display: none; width: 100%; height: 100%; flex-direction: column; }
-
-        /* 1. CANVAS AREA (80vh) */
-        .canvas-area {
-            height: 80vh; width: 100%;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            background: radial-gradient(circle at center, #222 0%, #000 100%);
-            position: relative; overflow: hidden;
-        }
-        .canvas-wrapper { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; padding: 20px; }
         
-        canvas { 
-            background: white; 
-            box-shadow: 0 10px 50px rgba(0,0,0,0.8); 
-            max-width: 100%; max-height: 95%; 
-            cursor: grab; border: 1px solid #444;
-        }
-        canvas:active { cursor: grabbing; }
-
-        /* HUD */
-        .hud-bar {
-            position: absolute; top: 15px; left: 15px; right: 15px;
-            display: flex; justify-content: space-between; align-items: center;
-            pointer-events: none; z-index: 10;
-        }
-        .user-tag { background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px; color: #fff; border: 1px solid #444; }
-        .credit-tag { background: var(--accent); color: #000; font-weight: bold; padding: 5px 12px; border-radius: 20px; font-size: 12px; box-shadow: 0 0 10px rgba(187, 134, 252, 0.4); }
-
-        /* 2. TOOLS AREA (20vh) */
-        .tools-area {
-            height: 20vh; width: 100%; background-color: var(--tool-bg);
-            border-top: 1px solid var(--border);
-            display: flex; align-items: center;
-            overflow-x: auto; padding: 0 15px; gap: 20px;
-        }
-        .tools-area::-webkit-scrollbar { display: none; } /* Hide Scrollbar */
-
-        /* TOOL BUTTONS */
-        .tool-group { display: flex; flex-direction: column; align-items: center; min-width: 60px; cursor: pointer; }
-        .tool-btn {
-            width: 55px; height: 55px; background-color: var(--btn-bg);
-            border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            font-size: 22px; margin-bottom: 8px; border: 1px solid var(--border); color: white;
-            transition: transform 0.1s;
-        }
-        .tool-btn:active { transform: scale(0.9); background-color: #444; }
-        .tool-label { font-size: 11px; color: #888; text-align: center; white-space: nowrap; font-weight: 500; }
+        /* Canvas (80%) */
+        .canvas-area { height: 80vh; width: 100%; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, #222, #000); position: relative; }
+        .canvas-wrapper { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; padding: 10px; }
+        canvas { background: white; max-width: 95%; max-height: 95%; box-shadow: 0 10px 40px #000; border: 1px solid #333; }
         
-        /* Special Button Styles */
-        .tool-btn.active { border-color: var(--accent); color: var(--accent); }
-        .pro-tool .tool-btn { border: 2px solid var(--accent); color: var(--accent); background: rgba(187, 134, 252, 0.1); }
-        .pro-tool .tool-label { color: var(--accent); }
-        
-        .separator { width: 1px; height: 50%; background: #333; min-width: 1px; }
+        /* Tools (20%) */
+        .tools-area { height: 20vh; background: var(--panel); border-top: 1px solid #333; display: flex; align-items: center; overflow-x: auto; padding: 0 15px; gap: 20px; }
+        .tool-btn { width: 50px; height: 50px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 22px; border: 1px solid #444; color: white; margin-bottom: 5px; flex-shrink: 0; }
+        .tool-group { display: flex; flex-direction: column; align-items: center; min-width: 60px; }
+        .tool-label { font-size: 10px; color: #aaa; }
 
-        /* HIDDEN CONTROLS & MODAL */
+        /* Helpers */
         .hidden-controls { display: none; }
-        
         #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 6000; display: none; justify-content: center; align-items: center; }
-        .modal-box { background: var(--tool-bg); width: 85%; max-width: 320px; padding: 25px; border-radius: 16px; text-align: center; border: 1px solid var(--border); }
-        .modal-img { max-width: 100%; height: 180px; object-fit: contain; margin: 15px 0; background: #000; border-radius: 8px; }
-        .btn-confirm { width: 100%; padding: 14px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; margin-top: 10px; font-size: 16px; }
-        .btn-cancel { width: 100%; padding: 14px; background: #333; color: #fff; border: none; border-radius: 8px; font-weight: bold; margin-top: 8px; }
+        .modal-box { background: var(--panel); padding: 20px; border-radius: 10px; width: 90%; max-width: 320px; text-align: center; border: 1px solid #444; }
     </style>
-
-    <style>
-    #debug-screen {
-        position: fixed; top: 0; left: 0; width: 100%; height: 200px;
-        background: rgba(0,0,0,0.85); color: #0f0; font-family: monospace;
-        font-size: 11px; padding: 10px; z-index: 999999; 
-        overflow-y: scroll; pointer-events: none; border-bottom: 2px solid red;
-    }
-    .log-err { color: #ff5555; font-weight: bold; border-bottom: 1px solid #550000; }
-    .log-info { color: #ffff00; }
-</style>
-<div id="debug-screen">SYSTEM LOG STARTED...<br></div>
-<script>
-    (function(){
-        var screen = document.getElementById('debug-screen');
-        function printLog(msg, type) {
-            var l = document.createElement('div');
-            l.className = type === 'error' ? 'log-err' : 'log-info';
-            l.innerHTML = (type==='error'?'❌ ':'ℹ️ ') + msg;
-            screen.appendChild(l);
-            screen.scrollTop = screen.scrollHeight;
-        }
-
-        // 1. Capture Standard JS Errors
-        window.onerror = function(msg, url, line) {
-            printLog("JS Error (L" + line + "): " + msg, 'error');
-        };
-
-        // 2. Capture Promise Rejections (Firebase Auth Errors usually hide here)
-        window.addEventListener('unhandledrejection', function(event) {
-            printLog("Promise Error: " + (event.reason ? event.reason.message : event.reason), 'error');
-        });
-
-        // 3. Override Console.log/error to show on screen
-        var oldLog = console.log;
-        var oldErr = console.error;
-        console.log = function(m) { printLog(m, 'info'); oldLog.apply(console, arguments); };
-        console.error = function(m) { printLog(m, 'error'); oldErr.apply(console, arguments); };
-    })();
-</script>
-
-
-    
 </head>
 <body>
 
-    <div id="debug-screen">SYSTEM LOG STARTED...<br></div>
+    <div id="debug-console">waiting for logs...<br></div>
 
     <div class="hidden-controls">
         <input type="file" id="fInput">
-        <input type="number" id="tW" value="100">
-        <input type="number" id="tH" value="90">
-        <input type="text" id="sW">
-        <input type="text" id="sH">
-        <input type="number" id="gap" value="2">
+        <input type="number" id="tW" value="100"><input type="number" id="tH" value="90">
+        <input type="text" id="sW"><input type="text" id="sH"><input type="number" id="gap" value="2">
         <select id="shp"><option value="rect">Rect</option><option value="circle">Circle</option><option value="arch-top">Arch Top</option><option value="arch-bottom">Arch Bottom</option></select>
-        <input type="range" id="zoom" min="0.1" max="3.0" step="0.1" value="1.0">
-        <input type="checkbox" id="mirror">
-        <select id="fitMode"><option value="cover">Cover</option><option value="stretch">Stretch</option><option value="contain">Contain</option></select>
+        <input type="range" id="zoom" min="0.1" max="3" step="0.1" value="1">
+        <input type="checkbox" id="mirror"><select id="fitMode"><option value="cover">Cover</option><option value="stretch">Stretch</option><option value="contain">Contain</option></select>
         <input type="color" id="clr" value="#ffffff">
     </div>
 
     <div id="login-view">
         <div class="auth-box">
-            <h2 style="color:white; margin:0 0 10px 0;">Hakimi Pro</h2>
-            <p style="color:#666; font-size:12px;">Dark Edition v32</p>
-            <button class="btn-google" id="btnLogin" onclick="googleLogin()">
+            <h2 style="color:#fff; margin:0;">Hakimi Pro</h2>
+            <p style="color:#666; font-size:12px;">v33 Debug</p>
+            
+            <button class="btn-google" id="btnLogin" onclick="debugLogin()">
                 <span>📂</span> Sign in with Google
             </button>
-            <div id="login-msg" style="margin-top:15px; font-size:12px; color:#ff5555;"></div>
+            
+            <div id="login-status" style="margin-top:15px; font-size:12px; color:yellow; min-height:20px;"></div>
         </div>
     </div>
 
     <div id="app-view">
         <div class="canvas-area">
-            <div class="hud-bar">
-                <div class="user-tag" id="userName">Guest</div>
-                <div class="credit-tag" id="creditDisplay">...</div>
-            </div>
+            <div style="position:absolute; top:10px; left:10px; color:#fff; font-size:12px; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:15px;" id="userName">Guest</div>
+            <div style="position:absolute; top:10px; right:10px; color:#000; font-size:12px; background:#bb86fc; padding:5px 10px; border-radius:15px; font-weight:bold;" id="creditDisplay">...</div>
             <div class="canvas-wrapper"><canvas id="cvs"></canvas></div>
         </div>
-
         <div class="tools-area">
+            <div class="tool-group" onclick="handleUploadClick()"><div class="tool-btn" style="background:#fff; color:#000;">📂</div><span class="tool-label">Upload</span></div>
+            <div class="tool-group" onclick="promptVal('tW','Width')"><div class="tool-btn">↔️</div><span class="tool-label">Width</span></div>
+            <div class="tool-group" onclick="promptVal('tH','Height')"><div class="tool-btn">↕️</div><span class="tool-label">Height</span></div>
+            <div class="tool-group" onclick="cycleZoom()"><div class="tool-btn">🔍</div><span class="tool-label" id="lbl-zoom">1.0x</span></div>
+            <div class="tool-group" onclick="cycleFit()"><div class="tool-btn">🖼️</div><span class="tool-label" id="lbl-fit">Cover</span></div>
+            <div class="tool-group" onclick="toggleMirror()"><div class="tool-btn">🪞</div><span class="tool-label">Flip</span></div>
+            <div class="tool-group" onclick="cycleShape()"><div class="tool-btn">⬜</div><span class="tool-label" id="lbl-shape">Rect</span></div>
+            <div class="tool-group"><div class="tool-btn" style="position:relative;"><input type="color" oninput="updateColor(this.value)" style="position:absolute;opacity:0;width:100%;height:100%;"><div style="pointer-events:none;">🎨</div></div><span class="tool-label">Color</span></div>
             
-            <div class="tool-group" onclick="handleUploadClick()">
-                <div class="tool-btn" style="background:#fff; color:#000;">📂</div>
-                <span class="tool-label">Upload</span>
+            <div class="tool-group" id="btn-lock" onclick="unlockPro()"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">🔓</div><span class="tool-label" style="color:var(--acc);">Unlock</span></div>
+            <div id="pro-grp" style="display:none; gap:15px;">
+                <div class="tool-group" onclick="promptVal('sW','Split W')"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">✂️</div><span class="tool-label" style="color:var(--acc);">Split W</span></div>
+                <div class="tool-group" onclick="promptVal('sH','Split H')"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">➗</div><span class="tool-label" style="color:var(--acc);">Split H</span></div>
+                <div class="tool-group" onclick="promptVal('gap','Gap')"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">Gap</div><span class="tool-label" style="color:var(--acc);">Gap</span></div>
             </div>
 
-            <div class="separator"></div>
-
-            <div class="tool-group" onclick="promptVal('tW', 'Width (in)')">
-                <div class="tool-btn">↔️</div><span class="tool-label">Width</span>
-            </div>
-            <div class="tool-group" onclick="promptVal('tH', 'Height (in)')">
-                <div class="tool-btn">↕️</div><span class="tool-label">Height</span>
-            </div>
-
-            <div class="separator"></div>
-
-            <div class="tool-group" onclick="cycleZoom()">
-                <div class="tool-btn">🔍</div><span class="tool-label" id="lbl-zoom">1.0x</span>
-            </div>
-            <div class="tool-group" onclick="cycleFit()">
-                <div class="tool-btn">🖼️</div><span class="tool-label" id="lbl-fit">Cover</span>
-            </div>
-            <div class="tool-group" onclick="toggleMirror()">
-                <div class="tool-btn">🪞</div><span class="tool-label">Flip</span>
-            </div>
-            <div class="tool-group" onclick="cycleShape()">
-                <div class="tool-btn">⬜</div><span class="tool-label" id="lbl-shape">Rect</span>
-            </div>
-
-            <div class="tool-group">
-                <div class="tool-btn" style="position:relative; overflow:hidden;">
-                    <input type="color" oninput="updateColor(this.value)" value="#ffffff" style="position:absolute; top:-10px; left:-10px; width:200%; height:200%; opacity:0; cursor:pointer;">
-                    <div style="pointer-events:none;">🎨</div>
-                </div>
-                <span class="tool-label">Color</span>
-            </div>
-
-            <div class="separator"></div>
-
-            <div class="tool-group pro-tool" id="btn-pro-tools" onclick="activateProTools()">
-                <div class="tool-btn">🔓</div><span class="tool-label">Unlock</span>
-            </div>
-            
-            <div id="pro-tools-grp" style="display:none; gap:20px;">
-                <div class="tool-group pro-tool" onclick="promptVal('sW', 'Split Widths (e.g. 50,50)')">
-                    <div class="tool-btn">✂️</div><span class="tool-label">Split W</span>
-                </div>
-                <div class="tool-group pro-tool" onclick="promptVal('sH', 'Split Heights (e.g. 30,30)')">
-                    <div class="tool-btn">➗</div><span class="tool-label">Split H</span>
-                </div>
-                <div class="tool-group pro-tool" onclick="promptVal('gap', 'Gap Size (in)')">
-                    <div class="tool-btn">Gap</div><span class="tool-label">Gap</span>
-                </div>
-            </div>
-
-            <div class="separator"></div>
-
-            <div class="tool-group" onclick="downloadCanvas()">
-                <div class="tool-btn" style="background:#333; border-color:#666;">⬇️</div>
-                <span class="tool-label">Save</span>
-            </div>
-             <div class="tool-group" onclick="auth.signOut()">
-                <div class="tool-btn" style="background:#3f0000; border-color:#500; color:#ffaaaa;">X</div>
-                <span class="tool-label">Exit</span>
-            </div>
+            <div class="tool-group" onclick="downloadCanvas()"><div class="tool-btn">⬇️</div><span class="tool-label">Save</span></div>
+            <div class="tool-group" onclick="auth.signOut()"><div class="tool-btn" style="background:#500;">X</div><span class="tool-label">Exit</span></div>
         </div>
     </div>
 
     <div id="modal">
         <div class="modal-box">
-            <h3 style="color:#fff; margin-top:0;">Confirm Image</h3>
-            <img id="modal-img" class="modal-img">
-            <p style="color:#aaa">Cost: <b style="color:var(--accent)">4 Credits</b></p>
-            <button class="btn-confirm" onclick="closeModal(true)">Confirm & Pay</button>
-            <button class="btn-cancel" onclick="closeModal(false)">Cancel</button>
+            <h3 style="color:#fff">Confirm Image</h3>
+            <img id="modal-img" style="max-width:100%; height:150px; object-fit:contain; background:#000;">
+            <p style="color:#aaa">Cost: <b style="color:var(--acc)">4 Credits</b></p>
+            <button onclick="closeModal(true)" style="width:100%; padding:10px; background:var(--acc); border:none; border-radius:5px; font-weight:bold;">Confirm</button>
+            <button onclick="closeModal(false)" style="width:100%; padding:10px; background:#333; color:#fff; border:none; border-radius:5px; margin-top:5px;">Cancel</button>
         </div>
     </div>
 
     <script>
-        // --- LOGGER ---
-        var screen = document.getElementById('debug-screen');
-        function printLog(msg, type) {
-            console.log(msg);
-            // Uncomment next line to see logs on screen for debugging
-            // screen.style.display = 'block'; 
-            var l = document.createElement('div');
-            l.className = type === 'error' ? 'log-err' : 'log-info';
-            l.innerText = (type==='error'?'❌ ':'ℹ️ ') + msg;
-            screen.appendChild(l);
+        // --- LOGGER (Captures EVERYTHING) ---
+        var consoleBox = document.getElementById('debug-console');
+        function log(msg, type) {
+            var line = document.createElement('div');
+            line.className = type === 'error' ? 'log-err' : (type==='warn'?'log-warn':'');
+            line.innerText = "> " + msg;
+            consoleBox.appendChild(line);
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+            console.log(msg); // Also print to real console
         }
-        window.onerror = function(msg, url, line) { printLog("JS Error (L" + line + "): " + msg, 'error'); };
-        window.addEventListener('unhandledrejection', function(event) { printLog("Promise: " + event.reason, 'error'); });
+        
+        window.onerror = function(msg, url, line) { log("CRITICAL JS ERROR (L"+line+"): " + msg, 'error'); };
+        window.addEventListener('unhandledrejection', function(e) { log("PROMISE FAIL: " + e.reason, 'error'); });
 
         // --- FIREBASE CONFIG ---
         var firebaseConfig = {
@@ -320,23 +151,57 @@
         var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
 
         try {
+            log("Initializing Firebase...");
+            if(typeof firebase === 'undefined') throw new Error("Firebase SDK not loaded!");
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             auth = firebase.auth();
-        } catch(e) { printLog(e.message, 'error'); }
+            log("Firebase Loaded OK.");
+        } catch(e) { log("SETUP ERROR: " + e.message, 'error'); }
 
-        // --- LOGIN ---
-        function googleLogin() {
-            if(!auth) return;
+
+        // --- LOGIN DEBUGGER ---
+        function debugLogin() {
+            var btn = document.getElementById('btnLogin');
+            var stat = document.getElementById('login-status');
+            
+            // Visual Feedback
+            btn.style.background = "yellow";
+            btn.style.color = "black";
+            btn.innerText = "Processing...";
+            log("Button Touched. Starting Login process...");
+
+            if(!auth) {
+                log("FAIL: Auth object missing. Firebase didn't load.", 'error');
+                stat.innerText = "Error: Firebase not loaded.";
+                return;
+            }
+
             var provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch(function(err){ 
-                document.getElementById('login-msg').innerText = err.message;
+            
+            // Try Redirect (Better for Mobile)
+            log("Attempting Redirect Login...");
+            auth.signInWithRedirect(provider).catch(function(err){
+                log("LOGIN ERROR: " + err.code + " | " + err.message, 'error');
+                stat.innerText = err.message;
+                btn.style.background = "red";
+                btn.style.color = "white";
+                btn.innerText = "Retry Sign In";
             });
         }
 
+        // --- AUTH LISTENER ---
         if(auth) {
+            // Check for redirect result (when returning from Google)
+            auth.getRedirectResult().then(function(result) {
+                if (result.user) log("Redirect Login Successful: " + result.user.email);
+            }).catch(function(error) {
+                log("Redirect Result Error: " + error.code, 'error');
+            });
+
             auth.onAuthStateChanged(function(user) {
                 if(user) {
+                    log("User Authenticated: " + user.email);
                     currentUser = user;
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('app-view').style.display = 'flex';
@@ -348,64 +213,32 @@
                     });
                     setTimeout(draw, 500);
                 } else {
+                    log("No User Signed In. Showing Login Screen.");
                     document.getElementById('login-view').style.display = 'flex';
                     document.getElementById('app-view').style.display = 'none';
                 }
             });
         }
 
-        // --- UI BRIDGE FUNCTIONS (Button -> Hidden Input) ---
-        function promptVal(id, text) {
-            var el = document.getElementById(id);
-            var val = prompt(text, el.value);
-            if(val !== null) { el.value = val; draw(); }
-        }
-        function cycleZoom() {
-            var el = document.getElementById('zoom');
-            var val = parseFloat(el.value);
-            val = (val >= 3.0) ? 0.5 : val + 0.5;
-            el.value = val;
-            document.getElementById('lbl-zoom').innerText = val + "x";
-            draw();
-        }
-        function cycleFit() {
-            var el = document.getElementById('fitMode');
-            var opts = ['cover', 'stretch', 'contain'];
-            el.value = opts[(opts.indexOf(el.value) + 1) % opts.length];
-            document.getElementById('lbl-fit').innerText = el.value;
-            draw();
-        }
-        function toggleMirror() {
-            var el = document.getElementById('mirror');
-            el.checked = !el.checked;
-            draw();
-        }
-        function cycleShape() {
-            var el = document.getElementById('shp');
-            var opts = ['rect', 'circle', 'arch-top', 'arch-bottom'];
-            el.value = opts[(opts.indexOf(el.value) + 1) % opts.length];
-            document.getElementById('lbl-shape').innerText = el.value.replace('-',' ');
-            draw();
-        }
-        function updateColor(val) {
-            document.getElementById('clr').value = val;
-            draw();
-        }
-        
+        // --- APP LOGIC BRIDGE ---
+        function promptVal(id, txt) { var v=prompt(txt, document.getElementById(id).value); if(v!==null){document.getElementById(id).value=v; draw();} }
+        function cycleZoom() { var el=document.getElementById('zoom'); var v=parseFloat(el.value); v=(v>=3)?0.5:v+0.5; el.value=v; document.getElementById('lbl-zoom').innerText=v+"x"; draw(); }
+        function cycleFit() { var el=document.getElementById('fitMode'); var o=['cover','stretch','contain']; el.value=o[(o.indexOf(el.value)+1)%3]; document.getElementById('lbl-fit').innerText=el.value; draw(); }
+        function toggleMirror() { var el=document.getElementById('mirror'); el.checked=!el.checked; draw(); }
+        function cycleShape() { var el=document.getElementById('shp'); var o=['rect','circle','arch-top','arch-bottom']; el.value=o[(o.indexOf(el.value)+1)%4]; document.getElementById('lbl-shape').innerText=el.value.replace('-',' '); draw(); }
+        function updateColor(v) { document.getElementById('clr').value=v; draw(); }
+
         function handleUploadClick() {
             document.getElementById('fInput').click();
-            // Reset Pro Logic
-            document.getElementById('btn-pro-tools').style.display = 'flex';
-            document.getElementById('pro-tools-grp').style.display = 'none';
-            document.getElementById('sW').value = '';
-            document.getElementById('sH').value = '';
+            document.getElementById('btn-lock').style.display = 'flex';
+            document.getElementById('pro-grp').style.display = 'none';
+            document.getElementById('sW').value=''; document.getElementById('sH').value='';
         }
-
-        function activateProTools() {
+        
+        function unlockPro() {
             if(!currentUser) return;
-            var btn = document.getElementById('btn-pro-tools');
+            var btn = document.getElementById('btn-lock');
             btn.querySelector('.tool-label').innerText = "...";
-            
             var ref = db.collection('users').doc(currentUser.uid);
             db.runTransaction(function(t){
                 return t.get(ref).then(function(doc){
@@ -415,16 +248,14 @@
                 });
             }).then(function(){
                 btn.style.display = 'none';
-                document.getElementById('pro-tools-grp').style.display = 'flex';
-                document.getElementById('gap').value = '2'; 
-                btn.querySelector('.tool-label').innerText = "Unlock";
-                draw();
+                document.getElementById('pro-grp').style.display = 'flex';
+                document.getElementById('gap').value='2'; draw();
             }).catch(function(e){ alert(e); btn.querySelector('.tool-label').innerText = "Unlock"; });
         }
 
-        // --- DRAWING LOGIC ---
+        // --- CANVAS LOGIC ---
         var cvs = document.getElementById('cvs');
-        function getV(id) { var el=document.getElementById(id); return parseFloat(el.value||el.placeholder)||0; }
+        function getV(id){ return parseFloat(document.getElementById(id).value)||0; }
 
         document.getElementById('fInput').addEventListener('change', function(e) {
             if(e.target.files[0]) {
@@ -454,20 +285,55 @@
                 }).then(function(){
                     var img = new Image();
                     img.onload = function(){
-                        currentImg = img; imgState = {x:0, y:0, zoom:1.0};
-                        document.getElementById('zoom').value = 1.0;
-                        draw();
+                        currentImg = img; imgState={x:0, y:0, zoom:1.0};
+                        document.getElementById('zoom').value=1.0; draw();
                     };
                     img.src = tempSrc;
                 }).catch(function(e){ alert(e); });
             }
         }
 
-        // Drag
+        // Dragging
         function startDrag(e){ imgState.isDragging=true; imgState.lastX=e.touches?e.touches[0].clientX:e.clientX; imgState.lastY=e.touches?e.touches[0].clientY:e.clientY; }
         function doDrag(e){
             if(!imgState.isDragging) return;
             e.preventDefault();
             var cx=e.touches?e.touches[0].clientX:e.clientX; var cy=e.touches?e.touches[0].clientY:e.clientY;
             imgState.x += (cx - imgState.lastX); imgState.y += (cy - imgState.lastY);
-            imgState.lastX = cx; 
+            imgState.lastX = cx; imgState.lastY = cy;
+            draw();
+        }
+        function stopDrag(){ imgState.isDragging=false; }
+        cvs.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', stopDrag);
+        cvs.addEventListener('touchstart', startDrag); window.addEventListener('touchmove', doDrag); window.addEventListener('touchend', stopDrag);
+
+        function draw() {
+            var ctx = cvs.getContext('2d');
+            var tW=getV('tW')||100, tH=getV('tH')||90, gap=getV('gap')||0;
+            var sW=document.getElementById('sW').value, sH=document.getElementById('sH').value;
+            var cols=sW?sW.split(',').map(Number):[tW], rows=sH?sH.split(',').map(Number):[tH];
+            
+            var HD=1500; cvs.width=HD; cvs.height=HD;
+            var vW=cols.reduce((a,b)=>a+b,0)+(cols.length-1)*gap;
+            var vH=rows.reduce((a,b)=>a+b,0)+(rows.length-1)*gap;
+            var pad=100, safeW=HD-2*pad, safeH=HD-2*pad;
+            var PPI=Math.min(safeW/vW, safeH/vH);
+            var startX=pad+(safeW-vW*PPI)/2, startY=pad+(safeH-vH*PPI)/2;
+            
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD);
+            var cY=startY;
+            rows.forEach(function(h, rI){
+                var cX=startX;
+                var rShp=document.getElementById('shp').value;
+                if(rShp.includes('arch') && rI!==0 && rI!==rows.length-1) rShp='rect';
+                cols.forEach(function(w){
+                    var dW=w*PPI, dH=h*PPI;
+                    ctx.save();
+                    ctx.beginPath(); trace(ctx,cX,cY,dW,dH,rShp,PPI); ctx.clip();
+                    ctx.fillStyle=document.getElementById('clr').value; ctx.fill();
+                    
+                    if(currentImg) {
+                        ctx.save();
+                        var centerX=cX+dW/2, centerY=cY+dH/2;
+                        ctx.translate(centerX+imgState.x, centerY+imgState.y);
+                        ctx.scale(
