@@ -141,20 +141,30 @@
         // --- LOGIN LOGIC ---
         function appLogin() {
             var btn = document.getElementById('btnLogin');
-            var stat = document.getElementById('login-status');
-            
-            btn.innerText = "Processing...";
-            stat.innerText = "Connecting to Google...";
+            var msg = document.getElementById('login-msg');
+            btn.innerText = "Connecting...";
+            if(msg) msg.innerText = "";
 
-            if(!auth) { stat.innerText = "Error: Firebase not loaded."; return; }
+            if (!auth) { alert("Firebase not loaded"); return; }
 
-            var provider = new firebase.auth.GoogleAuthProvider();
-            // Using Redirect as it is safer for mobile
-            auth.signInWithRedirect(provider).catch(function(err){
-                stat.innerText = err.message;
-                btn.innerText = "Try Again";
-                alert("Login Error: " + err.message);
-            });
+            // 1. FORCE BROWSER TO REMEMBER USER (Fixes the loop)
+            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+                .then(function() {
+                    var provider = new firebase.auth.GoogleAuthProvider();
+                    // 2. USE POPUP (Stops page reload issues)
+                    return auth.signInWithPopup(provider);
+                })
+                .catch(function(error) {
+                    btn.innerText = "📂 Sign in with Google";
+                    if(msg) msg.innerText = error.message;
+                    
+                    if (error.code === 'auth/popup-blocked') {
+                        alert("⚠️ Popup Blocked\nPlease allow popups for this site in your browser settings.");
+                    } else {
+                        alert("Login Failed: " + error.message);
+                    }
+                });
+
         }
 
         if(auth) {
@@ -197,6 +207,8 @@
             document.getElementById('btn-lock').style.display = 'flex';
             document.getElementById('pro-grp').style.display = 'none';
             document.getElementById('sW').value=''; document.getElementById('sH').value='';
+            hiddenBlocks = {}; // Reset plain blocks
+            
         }
         
         function unlockPro() {
