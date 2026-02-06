@@ -20,7 +20,7 @@
             --border: #444;
         }
 
-        /* RESET & BASE */
+        /* RESET */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             margin: 0; padding: 0;
@@ -32,96 +32,78 @@
             display: flex; flex-direction: column;
         }
 
-        /* ERROR BAR */
-        #error-bar { background: #7f1d1d; color: #fca5a5; padding: 10px; font-size: 12px; display: none; text-align: center; }
-
-        /* LOGIN SCREEN (Dark Mode) */
-        #login-view { position: fixed; inset: 0; z-index: 50; background: var(--bg-color); display: flex; justify-content: center; align-items: center; }
-        .auth-box { width: 300px; padding: 30px; text-align: center; background: var(--tool-bg); border-radius: 12px; border: 1px solid var(--border); }
+        /* --- LOGIN VIEW (RESTORED EXACT STYLES) --- */
+        #login-view { 
+            position: fixed; inset: 0; z-index: 50; 
+            background: var(--bg-color); 
+            display: flex; justify-content: center; align-items: center; 
+        }
+        .auth-box { 
+            width: 300px; padding: 30px; text-align: center; 
+            background: var(--tool-bg); 
+            border-radius: 12px; border: 1px solid var(--border); 
+        }
         .btn-google {
             width: 100%; padding: 12px; background: #4285F4; color: white; 
             border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px;
             display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px;
         }
+        #error-bar { background: #7f1d1d; color: #fca5a5; padding: 10px; font-size: 12px; display: none; text-align: center; }
 
-        /* --- LAYOUT STRUCTURE --- */
+        /* --- MAIN APP LAYOUT (80/20 SPLIT) --- */
         #app-view { display: none; width: 100%; height: 100%; flex-direction: column; }
 
-        /* 1. TOP: CANVAS AREA (80vh) */
+        /* 1. CANVAS AREA (TOP 80%) */
         .canvas-area {
-            flex: 1; /* Takes remaining space (approx 80%) */
+            flex: 1; 
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
             background: radial-gradient(circle at center, #2c2c2c 0%, #000 100%);
-            position: relative;
-            overflow: hidden;
+            position: relative; overflow: hidden;
         }
-
-        .canvas-wrapper { 
-            width: 100%; height: 100%; 
-            display: flex; justify-content: center; align-items: center; 
-        }
-
+        .canvas-wrapper { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        
         canvas { 
             background: white; 
             box-shadow: 0 10px 40px rgba(0,0,0,0.6); 
             max-width: 95%; max-height: 80vh; 
-            cursor: grab; 
-            border: 1px solid #333;
+            cursor: grab; border: 1px solid #333;
         }
         canvas:active { cursor: grabbing; }
 
-        /* HUD (Heads Up Display for Info) */
+        /* HUD */
         .hud-bar {
             position: absolute; top: 10px; left: 10px; right: 10px;
             display: flex; justify-content: space-between; align-items: center;
             pointer-events: none; z-index: 10;
         }
-        .user-tag { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 20px; font-size: 12px; color: #fff; backdrop-filter: blur(4px); }
+        .user-tag { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 20px; font-size: 12px; color: #fff; }
         .credit-tag { background: var(--accent); color: #000; font-weight: bold; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
 
-        /* 2. BOTTOM: TOOLS AREA (20vh) */
+        /* 2. TOOLS AREA (BOTTOM 20%) */
         .tools-area {
             height: 22vh; min-height: 140px;
-            width: 100%;
-            background-color: var(--tool-bg);
+            width: 100%; background-color: var(--tool-bg);
             border-top: 1px solid var(--border);
             display: flex; align-items: center;
-            overflow-x: auto; /* Horizontal Scroll */
-            padding: 0 15px;
-            gap: 15px;
-            scrollbar-width: none; /* Hide scrollbar */
+            overflow-x: auto; padding: 0 15px; gap: 15px;
         }
         .tools-area::-webkit-scrollbar { display: none; }
 
-        /* TOOL BUTTONS */
-        .tool-group {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            min-width: 65px; cursor: pointer; position: relative;
-        }
+        /* BUTTONS */
+        .tool-group { display: flex; flex-direction: column; align-items: center; min-width: 65px; cursor: pointer; }
         .tool-btn {
-            width: 50px; height: 50px;
-            background-color: var(--btn-bg);
-            border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 20px; margin-bottom: 6px;
-            border: 1px solid var(--border); color: white;
-            transition: 0.2s;
+            width: 50px; height: 50px; background-color: var(--btn-bg);
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-size: 20px; margin-bottom: 6px; border: 1px solid var(--border); color: white;
         }
         .tool-btn:active { transform: scale(0.9); background-color: #555; }
         .tool-label { font-size: 10px; color: #aaa; text-align: center; white-space: nowrap; }
-
-        /* ACTIVE/PRO STYLES */
-        .tool-btn.active { border-color: var(--accent); color: var(--accent); }
         .pro-tool .tool-btn { border: 2px solid var(--accent); color: var(--accent); }
-        .pro-tool .tool-label { color: var(--accent); font-weight: bold; }
-        
         .separator { width: 1px; height: 40px; background: #444; min-width: 1px; margin: 0 5px; }
 
-        /* HIDDEN INPUTS (We use JS to trigger them) */
+        /* HIDDEN CONTROLS (Used by Logic) */
         .hidden-controls { display: none; }
 
         /* MODAL */
@@ -135,8 +117,7 @@
 <body>
 
     <div class="hidden-controls">
-        <input type="file" id="fInput">
-        <input type="number" id="tW" value="100">
+        <input type="file" id="fInput"> <input type="number" id="tW" value="100">
         <input type="number" id="tH" value="90">
         <input type="text" id="sW">
         <input type="text" id="sH">
@@ -165,22 +146,19 @@
     </div>
 
     <div id="app-view">
-        
         <div class="canvas-area">
             <div class="hud-bar">
                 <div class="user-tag" id="userName">Guest</div>
-                <div class="credit-tag" id="creditDisplay">0 Credits</div>
+                <div class="credit-tag" id="creditDisplay">...</div>
             </div>
             <div class="canvas-wrapper">
-                <canvas id="cvs"></canvas>
-            </div>
+                <canvas id="cvs"></canvas> </div>
         </div>
 
         <div class="tools-area">
-            
             <div class="tool-group" onclick="handleUploadClick()">
                 <div class="tool-btn" style="background:var(--accent); color:black;">📂</div>
-                <span class="tool-label">Upload (4)</span>
+                <span class="tool-label">Upload</span>
             </div>
 
             <div class="separator"></div>
@@ -204,7 +182,6 @@
                 <div class="tool-btn">🖼️</div>
                 <span class="tool-label" id="lbl-fit">Cover</span>
             </div>
-
             <div class="tool-group" onclick="toggleMirror()">
                 <div class="tool-btn">🪞</div>
                 <span class="tool-label">Flip</span>
@@ -215,7 +192,7 @@
             </div>
             <div class="tool-group">
                 <div class="tool-btn" style="overflow:hidden;">
-                    <input type="color" oninput="updateColor(this.value)" value="#ffffff" style="opacity:0; width:100%; height:100%; cursor:pointer;">
+                    <input type="color" oninput="updateColor(this.value)" value="#ffffff" style="opacity:0; width:100%; height:100%;">
                     <div style="position:absolute; pointer-events:none;">🎨</div>
                 </div>
                 <span class="tool-label">Color</span>
@@ -225,7 +202,7 @@
 
             <div class="tool-group pro-tool" id="btn-lock" onclick="activateProTools()">
                 <div class="tool-btn">🔓</div>
-                <span class="tool-label">Unlock (2)</span>
+                <span class="tool-label">Unlock</span>
             </div>
 
             <div id="pro-tools-group" style="display:none; display:flex; gap:15px;">
@@ -253,7 +230,6 @@
                 <div class="tool-btn" style="background:#7f1d1d; color:#fff;">X</div>
                 <span class="tool-label">Exit</span>
             </div>
-
         </div>
     </div>
 
@@ -269,7 +245,7 @@
 
     <script>
         // ----------------------------------------------------
-        // FIREBASE CONFIG (UNTOUCHED)
+        // ORIGINAL FIREBASE CONFIG
         // ----------------------------------------------------
         var firebaseConfig = {
             apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
@@ -287,68 +263,17 @@
         window.onerror = function(msg, url, line) {
             var d = document.getElementById('error-bar');
             d.style.display = 'block';
-            d.innerText = "Error: " + msg;
+            d.innerText = "Error Line " + line + ": " + msg;
         };
 
+        // INIT FIREBASE
         try {
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             auth = firebase.auth();
         } catch (e) { alert("Config Error: " + e.message); }
 
-        // --- UI HELPER FUNCTIONS (CONNECTING NEW BUTTONS TO LOGIC) ---
-        
-        function promptVal(id, text) {
-            var el = document.getElementById(id);
-            var val = prompt(text, el.value);
-            if(val !== null) {
-                el.value = val;
-                draw();
-            }
-        }
-
-        function cycleShape() {
-            var el = document.getElementById('shp');
-            var opts = ['rect', 'circle', 'arch-top', 'arch-bottom'];
-            var curr = el.value;
-            var next = opts[(opts.indexOf(curr) + 1) % opts.length];
-            el.value = next;
-            document.getElementById('lbl-shape').innerText = next.replace('-',' ');
-            draw();
-        }
-
-        function cycleFit() {
-            var el = document.getElementById('fitMode');
-            var opts = ['cover', 'stretch', 'contain'];
-            var curr = el.value;
-            var next = opts[(opts.indexOf(curr) + 1) % opts.length];
-            el.value = next;
-            document.getElementById('lbl-fit').innerText = next;
-            draw();
-        }
-
-        function toggleMirror() {
-            var el = document.getElementById('mirror');
-            el.checked = !el.checked;
-            draw();
-        }
-
-        function updateColor(val) {
-            document.getElementById('clr').value = val;
-            draw();
-        }
-
-        function cycleZoom() {
-            var el = document.getElementById('zoom');
-            var val = parseFloat(el.value);
-            if(val >= 2.0) val = 0.5;
-            else val += 0.5;
-            el.value = val;
-            updateZoom();
-        }
-
-        // --- ORIGINAL LOGIC BELOW (UNTOUCHED FUNCTIONALITY) ---
-
+        // LOGIN FUNCTION (UNTOUCHED)
         function googleLogin() {
             var provider = new firebase.auth.GoogleAuthProvider();
             document.getElementById('login-msg').innerText = "Working...";
@@ -357,6 +282,7 @@
             });
         }
 
+        // AUTH STATE LISTENER (UNTOUCHED)
         if (auth) {
             auth.onAuthStateChanged(function(user) {
                 if (user) {
@@ -378,6 +304,62 @@
             });
         }
 
+        // UI HELPER FUNCTIONS (To Bridge New Buttons to Old Logic)
+        function promptVal(id, text) {
+            var el = document.getElementById(id);
+            var val = prompt(text, el.value);
+            if(val !== null) { el.value = val; draw(); }
+        }
+        function cycleShape() {
+            var el = document.getElementById('shp');
+            var opts = ['rect', 'circle', 'arch-top', 'arch-bottom'];
+            var curr = el.value;
+            var next = opts[(opts.indexOf(curr) + 1) % opts.length];
+            el.value = next;
+            document.getElementById('lbl-shape').innerText = next.replace('-',' ');
+            draw();
+        }
+        function cycleFit() {
+            var el = document.getElementById('fitMode');
+            var opts = ['cover', 'stretch', 'contain'];
+            var curr = el.value;
+            var next = opts[(opts.indexOf(curr) + 1) % opts.length];
+            el.value = next;
+            document.getElementById('lbl-fit').innerText = next;
+            draw();
+        }
+        function toggleMirror() {
+            var el = document.getElementById('mirror');
+            el.checked = !el.checked;
+            draw();
+        }
+        function updateColor(val) {
+            document.getElementById('clr').value = val;
+            draw();
+        }
+        function cycleZoom() {
+            var el = document.getElementById('zoom');
+            var val = parseFloat(el.value);
+            if(val >= 2.0) val = 0.5;
+            else val += 0.5;
+            el.value = val;
+            updateZoom();
+        }
+        function handleUploadClick() {
+            document.getElementById('fInput').click();
+            var btn = document.getElementById('btn-lock');
+            var grp = document.getElementById('pro-tools-group');
+            if (btn.style.display === 'none') {
+                btn.style.display = 'flex';
+                btn.querySelector('.tool-label').innerText = "Unlock";
+                grp.style.display = 'none';
+                document.getElementById('sW').value = '';
+                document.getElementById('sH').value = '';
+            }
+        }
+
+        // --- ORIGINAL APP LOGIC (EXACTLY AS PROVIDED) ---
+        
         document.getElementById('fInput').addEventListener('change', function(e) {
             if (e.target.files[0]) {
                 var file = e.target.files[0];
@@ -442,6 +424,7 @@
             draw();
         }
 
+        // DRAG
         var cvs = document.getElementById('cvs');
         function startDrag(e) {
             imgState.isDragging = true;
@@ -465,4 +448,4 @@
         window.addEventListener('mousemove', doDrag);
         window.addEventListener('mouseup', stopDrag);
         cvs.addEventListener('touchstart', startDrag);
-        window.addEve
+      
