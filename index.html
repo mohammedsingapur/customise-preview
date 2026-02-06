@@ -276,7 +276,10 @@
             var tW = getV('tW') || 100;
             var tH = getV('tH') || 90;
             var gap = getV('gap') || 0;
-            var aDepth = getV('archDepth') || 10; // Arch Depth
+            var aDepth = getV('archDepth') || 10;
+            
+            // FIX: Read Zoom directly from the tool button
+            var zoomLevel = parseFloat(document.getElementById('zoom').value) || 1.0;
             
             var sW = document.getElementById('sW').value;
             var sH = document.getElementById('sH').value;
@@ -288,33 +291,27 @@
             var depthBtn = document.getElementById('btn-arch-depth');
             if(depthBtn) depthBtn.style.display = currentShp.includes('arch') ? 'flex' : 'none';
 
-            // 3. CANVAS & LAYOUT MATH
+            // 3. CANVAS SETUP
             var HD = 1500; cvs.width = HD; cvs.height = HD;
             
-            // Calculate Total Visual Wall Size
             var vW = cols.reduce((a,b)=>a+b,0) + (cols.length-1)*gap;
             var vH = rows.reduce((a,b)=>a+b,0) + (rows.length-1)*gap;
             
             var pad = 100, safeW = HD - 2*pad, safeH = HD - 2*pad;
             var PPI = Math.min(safeW/vW, safeH/vH);
-            
             var startX = pad + (safeW - vW*PPI)/2;
             var startY = pad + (safeH - vH*PPI)/2;
             
-            // 4. PREPARE GLOBAL IMAGE (Continuous, Non-Repeating)
+            // 4. PREPARE GLOBAL IMAGE
             var imgParams = null;
             if(currentImg) {
-                // Calculate size based on TOTAL wall (vW, vH), not individual cells
                 var totalW_px = vW * PPI;
                 var totalH_px = vH * PPI;
                 var wallCenterX = startX + totalW_px / 2;
                 var wallCenterY = startY + totalH_px / 2;
                 
                 var fit = document.getElementById('fitMode').value;
-                var scale = 1;
                 var drawW, drawH;
-
-                // Scaling Logic
                 var imgRatio = currentImg.width / currentImg.height;
                 var wallRatio = totalW_px / totalH_px;
 
@@ -328,76 +325,63 @@
                     else { drawW = totalW_px; drawH = totalW_px / imgRatio; }
                 }
 
-                // Store params to reuse in loop
-                imgParams = {
-                    gx: wallCenterX, gy: wallCenterY,
-                    w: drawW, h: drawH
-                };
+                imgParams = { gx: wallCenterX, gy: wallCenterY, w: drawW, h: drawH };
             }
 
             // 5. DRAW LOOP
-            ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD); // Background
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD); // Canvas Background
             
             var cY = startY;
             rows.forEach(function(h, rI){
                 var cX = startX;
                 
-                // --- ARCH LOGIC (Split from Height) ---
+                // Arch Logic
                 var rShp = currentShp;
-                if(currentShp === 'arch-top') {
-                    // Only Top Row is Arch
-                    if(rI !== 0) rShp = 'rect';
-                } else if (currentShp === 'arch-bottom') {
-                    // Only Bottom Row is Arch
-                    if(rI !== rows.length - 1) rShp = 'rect';
-                }
+                if(currentShp === 'arch-top' && rI !== 0) rShp = 'rect';
+                if(currentShp === 'arch-bottom' && rI !== rows.length - 1) rShp = 'rect';
 
                 cols.forEach(function(w){
                     var dW = w*PPI, dH = h*PPI;
                     
                     ctx.save();
-                    
-                    // A. CLIP TO PANEL SHAPE
+                    // Clip Panel
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.clip();
                     
-                    // B. FILL BACKGROUND COLOR
-                    ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
+                    // FIX: Fill Panel with Selected Color (Handles empty space)
+                    ctx.fillStyle = document.getElementById('clr').value; 
+                    ctx.fill();
                     
-                    // C. DRAW IMAGE (Global Position)
+                    // Draw Image
                     if(imgParams) {
                         ctx.save();
-                        // Move to Global Center + User Drag
+                        // Position
                         ctx.translate(imgParams.gx + imgState.x, imgParams.gy + imgState.y);
-                        // Zoom
-                        ctx.scale(imgState.zoom, imgState.zoom);
-                        // Mirror
+                        
+                        // FIX: Apply Zoom Level + Mirror
+                        ctx.scale(zoomLevel, zoomLevel);
                         if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
                         
-                        // Draw centered
                         ctx.drawImage(currentImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
                         ctx.restore();
                     }
                     ctx.restore();
                     
-                    // D. STROKE & TEXT
+                    // Stroke
                     ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
                     
+                    // Text
                     var fontSize = 60;
                     ctx.fillStyle="#333"; ctx.font="bold "+fontSize+"px sans-serif"; ctx.textAlign="center";
-                    
-                    // Width Label
                     ctx.fillText(w+'"', cX+dW/2, cY+dH+70);
-                    
-                    // Height Label (Rotated)
-                    ctx.save(); ctx.translate(cX-30, cY+dH/2); ctx.rotate(-Math.PI/2); 
-                    ctx.fillText(h+'"', 0,0); ctx.restore();
+                    ctx.save(); ctx.translate(cX-30, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"', 0,0); ctx.restore();
 
                     cX += dW + gap*PPI;
                 });
                 cY += h*PPI + gap*PPI;
             });
         }
+
 
 
         function trace(ctx,x,y,w,h,t,p,depthIn){
