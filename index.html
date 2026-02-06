@@ -1,302 +1,312 @@
-<!DOCTYPE html>
+        <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hakimi Pro v28 - Fixed</title>
+    <title>Hakimi Pro v27</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
     <style>
-        /* --- DARK THEME VARIABLES --- */
-        :root {
-            --bg-color: #121212;
-            --tool-bg: #1e1e1e;
-            --text-color: #e0e0e0;
-            --accent: #bb86fc; 
-            --btn-bg: #333333;
-            --border: #444;
-        }
-
-        /* RESET */
+        /* BASE STYLES */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body {
-            margin: 0; padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            height: 100vh; width: 100vw;
-            overflow: hidden;
-            display: flex; flex-direction: column;
-        }
+        body {height:90%,padding: 5%, font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-        /* --- DEBUG CONSOLE (Top Fixed) --- */
-        #debug-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: auto; max-height: 100px;
-            background: rgba(50, 0, 0, 0.9); border-bottom: 2px solid red;
-            color: #ff9999; font-family: monospace; font-size: 10px;
-            padding: 5px; overflow-y: auto; z-index: 200000;
-            display: none; pointer-events: none; /* Let clicks pass through unless selecting text */
-        }
+        /* ERROR BAR */
+        #error-bar { background: #fee2e2; color: #b91c1c; padding: 10px; font-size: 12px; display: none; border-bottom: 1px solid red; font-family: monospace; }
 
-        /* --- LOGIN SCREEN (Highest Z-Index) --- */
-        #login-view { 
-            position: fixed; inset: 0; z-index: 100000; 
-            background: var(--bg-color); 
-            display: flex; justify-content: center; align-items: center; 
-        }
-        .auth-box { 
-            width: 300px; padding: 30px; text-align: center; 
-            background: var(--tool-bg); 
-            border-radius: 12px; border: 1px solid var(--border); 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-        }
+        /* LOGIN SCREEN */
+        #login-view { position: fixed; inset: 0; z-index: 50; background: white; display: flex; justify-content: center; align-items: center; }
+        .auth-box { width: 300px; padding: 30px; text-align: center; }
         .btn-google {
-            width: 100%; padding: 15px; background: #4285F4; color: white; 
+            width: 100%; padding: 12px; background: #4285F4; color: white; 
             border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px;
-            display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
         }
-        .btn-google:active { transform: scale(0.98); }
 
-        /* --- APP LAYOUT (80/20) --- */
+        /* MAIN APP */
         #app-view { display: none; width: 100%; height: 100%; flex-direction: column; }
-
-        /* 1. CANVAS AREA (80vh) */
-        .canvas-area {
-            height: 80vh; width: 100%;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            background: radial-gradient(circle at center, #2c2c2c 0%, #000 100%);
-            position: relative; overflow: hidden;
-        }
-        .canvas-wrapper { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
         
-        canvas { 
-            background: white; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6); 
-            max-width: 95%; max-height: 90%; 
-            cursor: grab; border: 1px solid #333;
+        aside { 
+            background: white; padding: 20px; border-bottom: 1px solid #eee; 
+            display: flex; flex-direction: column; gap: 12px; 
+            max-height: 45vh; overflow-y: auto; z-index: 10; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        @media (min-width: 768px) {
+            #app-view { flex-direction: row; }
+            aside { width: 360px; border-right: 1px solid #eee; border-bottom: none; max-height: 100vh; }
         }
 
-        /* HUD */
-        .hud-bar {
-            position: absolute; top: 10px; left: 10px; right: 10px;
-            display: flex; justify-content: space-between; align-items: center;
-            pointer-events: none; z-index: 10;
+        /* CONTROLS */
+        label { display: block; font-size: 11px; font-weight: 700; color: #4b5563; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input[type="text"], input[type="number"], select { 
+            width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; 
+            font-size: 14px; background: #fff; margin-bottom: 5px;
         }
-        .user-tag { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 20px; font-size: 12px; color: #fff; }
-        .credit-tag { background: var(--accent); color: #000; font-weight: bold; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
+        .row { display: flex; gap: 10px; }
+        .col { flex: 1; }
+        
+        .blue-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-bottom: 5px; }
+        
+        .btn-upload { 
+            border: 1px solid #d1d5db; padding: 12px; border-radius: 6px; cursor: pointer; 
+            background: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; color: #374151;
+        }
 
-        /* 2. TOOLS AREA (20vh) */
-        .tools-area {
-            height: 20vh; width: 100%; background-color: var(--tool-bg);
-            border-top: 1px solid var(--border);
-            display: flex; align-items: center;
-            overflow-x: auto; padding: 0 15px; gap: 20px;
-        }
-        /* Hide scrollbar */
-        .tools-area::-webkit-scrollbar { display: none; }
-        .tools-area { -ms-overflow-style: none; scrollbar-width: none; }
+        /* NEW CONTROLS */
+        .check-row { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+        input[type=range] { width: 100%; margin: 10px 0; }
+        .check-row input { width: auto; }
 
         /* BUTTONS */
-        .tool-group { display: flex; flex-direction: column; align-items: center; min-width: 65px; cursor: pointer; }
-        .tool-btn {
-            width: 55px; height: 55px; background-color: var(--btn-bg);
-            border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            font-size: 22px; margin-bottom: 6px; border: 1px solid var(--border); color: white;
+        .btn-black { width: 100%; padding: 14px; background: #111; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-link { background: none; border: none; color: #dc2626; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 5px; }
+
+        /* CANVAS AREA - CSS FIXED FOR MOBILE */
+                /* CANVAS AREA - MOBILE OPTIMIZED */
+                /* CANVAS AREA - v2.0 STYLE FIX */
+                /* CANVAS AREA - SCROLLABLE */
+                /* CANVAS AREA - v2.0 STYLE FIX */
+        main { 
+            flex: 1; 
+            background: #e5e5e5; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            padding: 10px; 
+            overflow: hidden; /* Prevents the page from scrolling */
+            position: relative; 
+        }
+
+        .canvas-wrapper { 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: hidden;
+        }
+
+                /* AUTO-FIT CANVAS STYLE */
+        canvas { 
+            background: white; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+            padding-bottom : 10%;
+            
+            /* VISUAL SIZE: Fits phone screen perfectly */
+            max-width: 100%;
+            max-height: 60vh; /* Keeps it visible without scrolling */
+            width: auto;
+            height: auto;
+            
+            /* INTERACTION */
+            cursor: grab; 
+            touch-action: none;
+            object-fit: contain;
+        }
+        canvas:active { cursor: grabbing; }
+
+                /* PRO BUTTON STYLE */
+        .btn-pro {
+            width: 100%;
+            padding: 12px;
+            background: #7c3aed; /* Purple */
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             transition: 0.2s;
         }
-        .tool-btn:active { transform: scale(0.9); background-color: #555; }
-        .tool-label { font-size: 11px; color: #aaa; text-align: center; white-space: nowrap; }
+        .btn-pro:active { transform: scale(0.98); }
         
-        .pro-tool .tool-btn { border: 2px solid var(--accent); color: var(--accent); }
-        .pro-tool .tool-label { color: var(--accent); font-weight: bold; }
-        .separator { width: 1px; height: 50%; background: #444; min-width: 1px; }
 
-        /* MODAL & HIDDEN CONTROLS */
-        .hidden-controls { display: none; }
-        #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10001; display: none; justify-content: center; align-items: center; }
-        .modal-box { background: var(--tool-bg); width: 85%; max-width: 320px; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
-        .modal-img { max-width: 100%; height: 180px; object-fit: contain; margin: 15px 0; border: 1px solid #444; background: #000; }
-        .btn-confirm { width: 100%; padding: 12px; background: var(--accent); color: #000; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }
-        .btn-cancel { width: 100%; padding: 12px; background: #333; color: #fff; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
+        
+        .drag-hint { background: rgba(0,0,0,0.1); padding: 5px 10px; border-radius: 20px; font-size: 12px; color: #666; margin-bottom: 10px; position: absolute; top: 10px; z-index: 5; pointer-events: none; }
+
+        /* MODAL */
+        #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal-box { background: white; width: 85%; max-width: 320px; padding: 20px; border-radius: 12px; text-align: center; }
+        .modal-img { max-width: 100%; height: 180px; object-fit: contain; margin: 15px 0; border: 1px solid #eee; }
+        .btn-confirm { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }
+        .btn-cancel { width: 100%; padding: 12px; background: #eee; color: #333; border: none; border-radius: 6px; font-weight: bold; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <div id="debug-overlay">SYSTEM LOG:<br></div>
-
-    <div class="hidden-controls">
-        <input type="file" id="fInput">
-        <input type="number" id="tW" value="100">
-        <input type="number" id="tH" value="90">
-        <input type="text" id="sW">
-        <input type="text" id="sH">
-        <input type="number" id="gap" value="2">
-        <select id="shp"><option value="rect">Rect</option><option value="circle">Circle</option><option value="arch-top">Arch Top</option><option value="arch-bottom">Arch Bottom</option></select>
-        <input type="range" id="zoom" min="0.1" max="3.0" step="0.1" value="1.0">
-        <input type="checkbox" id="mirror">
-        <select id="fitMode"><option value="cover">Cover</option><option value="stretch">Stretch</option><option value="contain">Contain</option></select>
-        <input type="color" id="clr" value="#ffffff">
-    </div>
+    <div id="error-bar"></div>
 
     <div id="login-view">
         <div class="auth-box">
-            <h2 style="color:white; margin:0 0 10px 0;">Hakimi Pro</h2>
-            <p style="color:#888; font-size:12px; margin-bottom:20px;">Dark Mode v28</p>
-            <button class="btn-google" id="btnLogin"><span>📂</span> Sign in with Google</button>
-            <p id="login-msg" style="color:#ff6b6b; font-size:12px; margin-top:15px; font-family:monospace; word-break:break-word;"></p>
+            <h2>Hakimi Pro</h2>
+            <button class="btn-google" onclick="googleLogin()"><span>🔵</span> Sign in with Google</button>
+            <p id="login-msg" style="color:red; font-size:12px; margin-top:15px;"></p>
         </div>
     </div>
 
     <div id="app-view">
-        <div class="canvas-area">
-            <div class="hud-bar">
-                <div class="user-tag" id="userName">Guest</div>
-                <div class="credit-tag" id="creditDisplay">...</div>
+         <aside>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="font-size:12px;">Hakimi Tools</strong>
+                <span id="creditDisplay" style="color:#2563eb; font-weight:bold; font-size:10px;">...</span>
             </div>
-            <div class="canvas-wrapper"><canvas id="cvs"></canvas></div>
-        </div>
 
-        <div class="tools-area">
-            <div class="tool-group" onclick="handleUploadClick()">
-                <div class="tool-btn" style="background:var(--accent); color:black;">📂</div><span class="tool-label">Upload</span>
+            <div id="userName" style="font-size:13px; color:#444; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                Guest
             </div>
-            <div class="separator"></div>
-            
-            <div class="tool-group" onclick="promptVal('tW', 'Width (in)')">
-                <div class="tool-btn">↔️</div><span class="tool-label">Width</span>
-            </div>
-            <div class="tool-group" onclick="promptVal('tH', 'Height (in)')">
-                <div class="tool-btn">↕️</div><span class="tool-label">Height</span>
-            </div>
-            <div class="separator"></div>
 
-            <div class="tool-group" onclick="cycleZoom()">
-                <div class="tool-btn">🔍</div><span class="tool-label" id="lbl-zoom">1.0x</span>
+            <label>UPLOAD</label>
+            <input type="file" id="fInput" hidden>
+            <div class="btn-upload" onclick="handleUploadClick()">
+                <span>📂 Choose File (4 Credits)</span>
             </div>
-            <div class="tool-group" onclick="cycleFit()">
-                <div class="tool-btn">🖼️</div><span class="tool-label" id="lbl-fit">Cover</span>
-            </div>
-            <div class="tool-group" onclick="toggleMirror()">
-                <div class="tool-btn">🪞</div><span class="tool-label">Flip</span>
-            </div>
-            <div class="tool-group" onclick="cycleShape()">
-                <div class="tool-btn">⬜</div><span class="tool-label" id="lbl-shape">Rect</span>
-            </div>
-            <div class="tool-group">
-                <div class="tool-btn" style="overflow:hidden; position:relative;">
-                    <input type="color" oninput="updateColor(this.value)" value="#ffffff" style="position:absolute; opacity:0; width:100%; height:100%;">
-                    <div style="pointer-events:none;">🎨</div>
-                </div>
-                <span class="tool-label">Color</span>
-            </div>
-            <div class="separator"></div>
 
-            <div class="tool-group pro-tool" id="btn-pro-lock" onclick="activateProTools()">
-                <div class="tool-btn">🔓</div><span class="tool-label">Unlock</span>
-            </div>
-            <div id="pro-tools-grp" style="display:none; display:flex; gap:20px;">
-                <div class="tool-group pro-tool" onclick="promptVal('sW', 'Split Widths (e.g. 50,50)')">
-                    <div class="tool-btn">✂️</div><span class="tool-label">Split W</span>
+
+            <div class="row">
+                <div class="col">
+                    <label>Primary Width (in)</label>
+                    <input type="number" id="tW" placeholder="100" oninput="draw()">
                 </div>
-                <div class="tool-group pro-tool" onclick="promptVal('sH', 'Split Heights (e.g. 30,30)')">
-                    <div class="tool-btn">➗</div><span class="tool-label">Split H</span>
-                </div>
-                <div class="tool-group pro-tool" onclick="promptVal('gap', 'Gap Size (in)')">
-                    <div class="tool-btn">Gap</div><span class="tool-label">Gap</span>
+                <div class="col">
+                    <label>Primary Height (in)</label>
+                    <input type="number" id="tH" placeholder="90" oninput="draw()">
                 </div>
             </div>
 
-            <div class="separator"></div>
-            <div class="tool-group" onclick="downloadCanvas()">
-                <div class="tool-btn" style="background:#fff; color:#000;">⬇️</div><span class="tool-label">Save</span>
+            <button id="btn-pro-tools" class="btn-pro" onclick="activateProTools()">
+                <span>🔓</span> Pro Tools (2 Credits)
+            </button>
+
+            <div id="pro-tools-box" class="blue-box" style="display:none;">
+                <label>1. Split Widths (Columns)</label>
+                <input type="text" id="sW" placeholder="e.g. 55, 55" oninput="draw()">
+                
+                <label style="margin-top:5px;">2. Split Heights (Rows)</label>
+                <input type="text" id="sH" placeholder="e.g. 30, 30, 30" oninput="draw()">
+                
+                <label style="margin-top:5px;">Gap (in)</label>
+                <input type="number" id="gap" placeholder="2" oninput="draw()">
             </div>
-             <div class="tool-group" onclick="auth.signOut()">
-                <div class="tool-btn" style="background:#7f1d1d; color:#fff;">X</div><span class="tool-label">Exit</span>
+
+            <label>Panel Shape</label>
+            <select id="shp" onchange="draw()">
+                <option value="rect">Rectangle / Square</option>
+                <option value="circle">Circle</option>
+                <option value="arch-top">Arch Top</option>
+                <option value="arch-bottom">Arch Bottom</option>
+            </select>
+
+            <div style="background:#f3f4f6; padding:10px; border-radius:8px; margin-top:5px;">
+                <label>Zoom: <span id="zoomVal">1.0x</span></label>
+                <input type="range" id="zoom" min="0.1" max="3.0" step="0.1" value="1.0" oninput="updateZoom()">
+                
+                <div class="check-row">
+                    <input type="checkbox" id="mirror" onchange="draw()">
+                    <label for="mirror" style="margin:0; font-weight:400; font-size:13px;">Mirror Flip</label>
+                </div>
+
+                <label style="margin-top:10px;">Fit Mode:</label>
+                <select id="fitMode" onchange="draw()">
+                    <option value="cover">Cover (Fill Area)</option>
+                    <option value="stretch">Stretch (Force Fit)</option>
+                    <option value="contain">Fit (Whole Image)</option>
+                </select>
+                
+                <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                    <input type="color" id="clr" value="#ffffff" oninput="draw()" style="width:30px; height:30px; border:none; background:none; padding:0;">
+                    <span style="font-size:12px;">Extension Color</span>
+                </div>
             </div>
-        </div>
+
+            <button class="btn-black" onclick="downloadCanvas()" style="margin-top:15px;">Download</button>
+            <button class="btn-link" onclick="auth.signOut()">Logout</button>
+        </aside>
+
+
+        <main>
+            <div class="drag-hint">👆 Drag image to position</div>
+            <div class="canvas-wrapper">
+                <canvas id="cvs"></canvas>
+            </div>
+        </main>
     </div>
 
     <div id="modal">
         <div class="modal-box">
-            <h3 style="color:var(--text-color)">Confirm Image</h3>
+            <h3>Confirm Image</h3>
             <img id="modal-img" class="modal-img">
-            <p style="color:#aaa">Cost: <b style="color:var(--accent)">4 Credits</b></p>
+            <p>Cost: <b style="color:#dc2626">4 Credits</b></p>
             <button class="btn-confirm" onclick="closeModal(true)">Confirm</button>
             <button class="btn-cancel" onclick="closeModal(false)">Cancel</button>
         </div>
     </div>
 
     <script>
-        // --- 1. ERROR LOGGING SYSTEM ---
-        function sysLog(msg, isError) {
-            console.log(msg);
-            var d = document.getElementById('debug-overlay');
-            var span = document.createElement('div');
-            span.style.color = isError ? '#ff4444' : '#00ff00';
-            span.innerHTML = (isError ? "❌ " : "ℹ️ ") + msg;
-            d.appendChild(span);
-            if(isError) d.style.display = 'block';
-        }
-
-        window.onerror = function(msg, url, line) {
-            sysLog("JS Error (L" + line + "): " + msg, true);
-        };
-        window.addEventListener('unhandledrejection', function(event) {
-            sysLog("Promise Error: " + event.reason, true);
-        });
-
-        // --- 2. FIREBASE CONFIG ---
+        // ----------------------------------------------------
+        // KEYS (PASTE HERE)
+        // ----------------------------------------------------
         var firebaseConfig = {
             apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
-            authDomain: "customise-previews.firebaseapp.com",
-            projectId: "customise-previews",
-            storageBucket: "customise-previews.firebasestorage.app",
-            messagingSenderId: "1073406972228",
-            appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+  authDomain: "customise-previews.firebaseapp.com",
+  projectId: "customise-previews",
+  storageBucket: "customise-previews.firebasestorage.app",
+  messagingSenderId: "1073406972228",
+  appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
         };
+        // ----------------------------------------------------
 
-        // --- 3. VARIABLES ---
+        // GLOBAL VARS
+                // GLOBAL VARS
         var db, auth, currentUser, currentImg, tempSrc, uploadedFileName;
+
         var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
 
-        // --- 4. INIT ---
+        // ERROR TRAP
+        window.onerror = function(msg, url, line) {
+            var d = document.getElementById('error-bar');
+            d.style.display = 'block';
+            d.innerText = "Error Line " + line + ": " + msg;
+        };
+
+        // INIT FIREBASE
         try {
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             auth = firebase.auth();
-            sysLog("Firebase Initialized.");
-        } catch (e) { sysLog("Config Error: " + e.message, true); }
+        } catch (e) { alert("Config Error: " + e.message); }
 
-        // --- 5. LOGIN ---
-        document.getElementById('btnLogin').addEventListener('click', function() {
-            sysLog("Starting Login...");
+        // LOGIN
+        function googleLogin() {
             var provider = new firebase.auth.GoogleAuthProvider();
-            document.getElementById('login-msg').innerText = "Opening Popup...";
-            
-            auth.signInWithPopup(provider)
-                .then((result) => { sysLog("Login Success: " + result.user.email); })
-                .catch((error) => {
-                    sysLog("Login Fail: " + error.code + " " + error.message, true);
-                    document.getElementById('login-msg').innerText = error.message;
-                });
-        });
+            document.getElementById('login-msg').innerText = "Working...";
+            auth.signInWithPopup(provider).catch(function(error) {
+                document.getElementById('login-msg').innerText = error.message;
+            });
+        }
 
+        // AUTH LISTENER
         if (auth) {
             auth.onAuthStateChanged(function(user) {
                 if (user) {
                     currentUser = user;
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('app-view').style.display = 'flex';
-                    document.getElementById('userName').innerText = (user.displayName || "User");
+                    document.getElementById('userName').innerText = "👤 " + (user.displayName || user.email);
+                    
                     
                     db.collection('users').doc(user.uid).onSnapshot(function(doc) {
                         if (!doc.exists) db.collection('users').doc(user.uid).set({email: user.email, credits: 10});
                         else document.getElementById('creditDisplay').innerText = (doc.data().credits || 0) + " Credits";
-                    }, function(e){ sysLog("DB Error: "+e.message, true); });
+                    });
                     
                     setTimeout(draw, 500);
                 } else {
@@ -306,61 +316,14 @@
             });
         }
 
-        // --- 6. UI BRIDGE FUNCTIONS ---
-        function promptVal(id, text) {
-            var el = document.getElementById(id);
-            var val = prompt(text, el.value);
-            if(val !== null) { el.value = val; draw(); }
-        }
-        function cycleShape() {
-            var el = document.getElementById('shp');
-            var opts = ['rect', 'circle', 'arch-top', 'arch-bottom'];
-            el.value = opts[(opts.indexOf(el.value) + 1) % opts.length];
-            document.getElementById('lbl-shape').innerText = el.value.replace('-',' ');
-            draw();
-        }
-        function cycleFit() {
-            var el = document.getElementById('fitMode');
-            var opts = ['cover', 'stretch', 'contain'];
-            el.value = opts[(opts.indexOf(el.value) + 1) % opts.length];
-            document.getElementById('lbl-fit').innerText = el.value;
-            draw();
-        }
-        function toggleMirror() {
-            var el = document.getElementById('mirror');
-            el.checked = !el.checked;
-            draw();
-        }
-        function updateColor(val) {
-            document.getElementById('clr').value = val;
-            draw();
-        }
-        function cycleZoom() {
-            var el = document.getElementById('zoom');
-            var val = parseFloat(el.value);
-            val = (val >= 2.0) ? 0.5 : val + 0.5;
-            el.value = val;
-            document.getElementById('lbl-zoom').innerText = val + "x";
-            draw();
-        }
-        function handleUploadClick() {
-            document.getElementById('fInput').click();
-            var btn = document.getElementById('btn-pro-lock');
-            var grp = document.getElementById('pro-tools-grp');
-            if(btn.style.display === 'none') {
-                 btn.style.display = 'flex'; 
-                 btn.querySelector('.tool-label').innerText = "Unlock";
-                 grp.style.display = 'none';
-                 document.getElementById('sW').value = '';
-                 document.getElementById('sH').value = '';
-            }
-        }
-
-        // --- 7. CORE LOGIC (UNTOUCHED) ---
-        document.getElementById('fInput').addEventListener('change', function(e) {
+        // APP LOGIC
+         document.getElementById('fInput').addEventListener('change', function(e) {
             if (e.target.files[0]) {
                 var file = e.target.files[0];
+                
+                // Capture name and remove extension (e.g., removes ".png")
                 uploadedFileName = file.name.replace(/\.[^/.]+$/, ""); 
+                
                 var reader = new FileReader();
                 reader.onload = function(evt) { 
                     tempSrc = evt.target.result;
@@ -372,10 +335,12 @@
             }
         });
 
+
         function closeModal(shouldPay) {
             document.getElementById('modal').style.display = 'none';
             if (shouldPay && tempSrc) {
                 var ref = db.collection('users').doc(currentUser.uid);
+                
                 db.runTransaction(function(t) {
                     return t.get(ref).then(function(doc) {
                         var c = doc.data().credits || 0;
@@ -388,12 +353,12 @@
                         currentImg = img;
                         imgState.x = 0; imgState.y = 0; imgState.zoom = 1.0;
                         document.getElementById('zoom').value = 1.0;
-                        document.getElementById('lbl-zoom').innerText = "1.0x";
+                        document.getElementById('zoomVal').innerText = "1.0x";
                         tryColor(tempSrc);
                         draw();
                     };
                     img.src = tempSrc;
-                }).catch(function(err) { alert(err); sysLog(err, true); });
+                }).catch(function(err) { alert(err); });
             }
             if(!shouldPay) tempSrc = null;
         }
@@ -414,10 +379,82 @@
             i.src = src;
         }
 
+        function updateZoom() {
+            var v = document.getElementById('zoom').value;
+            imgState.zoom = parseFloat(v);
+            document.getElementById('zoomVal').innerText = v + "x";
+            draw();
+        }
+
+        // DRAG
         var cvs = document.getElementById('cvs');
         function startDrag(e) {
             imgState.isDragging = true;
             imgState.lastX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
             imgState.lastY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
         }
-        
+        function doDrag(e) {
+            if(!imgState.isDragging) return;
+            e.preventDefault(); 
+            var cx = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            var cy = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            
+            imgState.x += (cx - imgState.lastX);
+            imgState.y += (cy - imgState.lastY);
+            imgState.lastX = cx;
+            imgState.lastY = cy;
+            draw();
+        }
+        function stopDrag() { imgState.isDragging = false; }
+
+        cvs.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', doDrag);
+        window.addEventListener('mouseup', stopDrag);
+        cvs.addEventListener('touchstart', startDrag);
+        window.addEventListener('touchmove', doDrag);
+        window.addEventListener('touchend', stopDrag);
+
+        function getV(id) {
+            var el = document.getElementById(id);
+            return parseFloat(el.value || el.placeholder) || 0;
+        }
+
+        function draw() {
+            var ctx = cvs.getContext('2d');
+            
+            // 1. GET INPUTS
+            var sW_raw = document.getElementById('sW').value;
+            var sH_raw = document.getElementById('sH').value;
+            var tW = getV('tW') || 100;
+            var tH = getV('tH') || 90;
+            var gap = getV('gap') || 2;
+            var clr = document.getElementById('clr').value;
+            var shp = document.getElementById('shp').value;
+            var fit = document.getElementById('fitMode').value;
+            var mirror = document.getElementById('mirror').checked;
+
+            var cols = sW_raw ? sW_raw.split(',').map(Number).filter(function(n){ return n>0 }) : [tW];
+            var rows = sH_raw ? sH_raw.split(',').map(Number).filter(function(n){ return n>0 }) : [tH];
+            if(cols.length === 0) cols = [tW];
+            if(rows.length === 0) rows = [tH];
+            
+            // 2. SET FIXED HD RESOLUTION
+            var HD_SIZE = 1500; 
+            cvs.width = HD_SIZE;
+            cvs.height = HD_SIZE;
+            
+            // 3. CALCULATE VIRTUAL SIZE
+            var gW = cols.reduce(function(a,b){ return a+b }, 0);
+            var gH = rows.reduce(function(a,b){ return a+b }, 0);
+            var vW = gW + ((cols.length-1)*gap);
+            var vH = gH + ((rows.length-1)*gap);
+            
+            // 4. SAFE AREA (Increased padding for BIG text)
+            var padTop = 60;
+            var padRight = 60;
+            var padLeft = 180;   // Increased from 120 -> 180
+            var padBottom = 180; // Increased from 120 -> 180
+            
+            var safeW = cvs.width - (padLeft + padRight);
+            var safeH = cvs.height - (padTop + padBottom);
+ 
