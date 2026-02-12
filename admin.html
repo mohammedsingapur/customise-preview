@@ -120,19 +120,13 @@
 
         // --- AUTH LOGIC ---
         auth.onAuthStateChanged(function(user) {
-                // --- AUTH LOGIC ---
-        
-        // 1. FORCE LOGOUT ON PAGE LOAD (Security Feature)
-        auth.signOut(); 
-
-        auth.onAuthStateChanged(function(user) {
             if (user) {
-                // Only shows dashboard AFTER successful manual login
+                // User is signed in, show dashboard
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('dashboard-section').style.display = 'flex';
-                loadHistory(); 
+                loadHistory(); // Load data
             } else {
-                // Shows login screen by default
+                // User is signed out, show login
                 document.getElementById('login-section').style.display = 'flex';
                 document.getElementById('dashboard-section').style.display = 'none';
             }
@@ -145,16 +139,11 @@
             
             msg.innerText = "Verifying...";
             
-            // Set persistence to NONE (Session is never saved)
-            auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
-                .then(function() {
-                    return auth.signInWithEmailAndPassword(e, p);
-                })
+            auth.signInWithEmailAndPassword(e, p)
                 .catch(function(error) {
                     msg.innerText = "Error: " + error.message;
                 });
         }
-
 
         // --- RECHARGE LOGIC ---
         async function processRecharge() {
