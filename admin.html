@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | PNP</title>
+    <title>Admin Panel | PNP</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
@@ -14,22 +15,27 @@
         :root { --bg: #0f0f13; --panel: #1e1e24; --text: #e0e0e0; --acc: #bb86fc; --err: #cf6679; }
         body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
 
-        /* --- LAYOUT --- */
-        .container { width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 20px; }
+        /* --- LOGIN SCREEN --- */
+        #login-section { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; width: 100%; }
+        .login-box { background: var(--panel); padding: 40px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .login-input { width: 100%; padding: 15px; margin-bottom: 15px; background: #000; border: 1px solid #444; color: #fff; border-radius: 6px; font-size: 16px; outline: none; }
+        .login-input:focus { border-color: var(--acc); }
+        .btn-login { width: 100%; padding: 15px; background: var(--acc); color: #000; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .btn-login:hover { filter: brightness(1.1); }
+
+        /* --- DASHBOARD (Hidden by default) --- */
+        #dashboard-section { display: none; width: 100%; max-width: 800px; flex-direction: column; gap: 20px; }
         
         .card { background: var(--panel); padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border: 1px solid #333; }
         h2 { margin: 0 0 20px 0; border-bottom: 1px solid #333; padding-bottom: 10px; color: var(--acc); font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* --- FORM --- */
+        /* Form Elements inside Dashboard */
         .form-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        input { flex: 1; padding: 12px; background: #000; border: 1px solid #444; color: #fff; border-radius: 6px; outline: none; transition: 0.2s; }
-        input:focus { border-color: var(--acc); }
-        
-        button { padding: 12px 25px; background: var(--acc); color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:hover { filter: brightness(1.1); transform: translateY(-1px); }
-        button.secondary { background: #333; color: #fff; }
+        .dash-input { flex: 1; padding: 12px; background: #000; border: 1px solid #444; color: #fff; border-radius: 6px; outline: none; }
+        .dash-btn { padding: 12px 25px; background: var(--acc); color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-logout { background: #cf6679; color: white; float: right; padding: 5px 15px; font-size: 12px; margin-top: -5px; }
 
-        /* --- TABLE --- */
+        /* Table */
         .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #333; }
@@ -37,38 +43,47 @@
         tr:hover { background: rgba(255,255,255,0.02); }
         .amount-pos { color: #4caf50; font-weight: bold; }
 
-        /* --- STATUS MESSAGES --- */
-        #status-msg { margin-top: 10px; font-size: 0.9rem; min-height: 20px; }
-        .success { color: #4caf50; }
-        .error { color: var(--err); }
+        .success { color: #4caf50; margin-top: 10px; display: block; }
+        .error { color: var(--err); margin-top: 10px; display: block; }
 
-        @media (max-width: 600px) {
-            .form-group { flex-direction: column; }
-        }
+        @media (max-width: 600px) { .form-group { flex-direction: column; } }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div id="login-section">
+        <div class="login-box">
+            <h2 style="border:none; color:#fff;">Admin Login</h2>
+            <p style="color:#888; margin-bottom:20px;">Secure Access Only</p>
+            
+            <input type="email" id="adminEmail" class="login-input" placeholder="Admin Email">
+            <input type="password" id="adminPass" class="login-input" placeholder="Password">
+            
+            <button class="btn-login" onclick="adminLogin()">Login</button>
+            <div id="login-msg" class="error"></div>
+        </div>
+    </div>
+
+    <div id="dashboard-section">
         <div style="text-align:center; margin-bottom:10px;">
-            <h1 style="margin:0;">PNP Admin</h1>
+            <h1 style="margin:0;">PNP Admin <button class="dash-btn btn-logout" onclick="auth.signOut()">Logout</button></h1>
             <p style="color:#666; font-size:0.8rem;">Credit Management Console</p>
         </div>
 
         <div class="card">
             <h2>⚡ Quick Recharge</h2>
             <div class="form-group">
-                <input type="email" id="uEmail" placeholder="User Email Address">
-                <input type="number" id="uCredits" placeholder="Amount (e.g. 50)" style="max-width:150px;">
-                <button onclick="processRecharge()">ADD CREDITS</button>
+                <input type="email" id="uEmail" class="dash-input" placeholder="User Email Address">
+                <input type="number" id="uCredits" class="dash-input" placeholder="Amount (e.g. 50)" style="max-width:150px;">
+                <button class="dash-btn" onclick="processRecharge()">ADD</button>
             </div>
             <div id="status-msg"></div>
         </div>
 
         <div class="card">
             <div class="table-header">
-                <h2>📋 Recent Transactions (15 Days)</h2>
-                <button class="secondary" onclick="downloadPDF()">⬇ PDF Report</button>
+                <h2>📋 Recent History (15 Days)</h2>
+                <button class="dash-btn" style="background:#333; color:#fff;" onclick="downloadPDF()">⬇ PDF</button>
             </div>
             
             <div style="overflow-x:auto;">
@@ -77,12 +92,12 @@
                         <tr>
                             <th>Date</th>
                             <th>User Email</th>
-                            <th>Recharge Amount</th>
+                            <th>Amount</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="4" style="text-align:center; color:#666;">Loading history...</td></tr>
+                        <tr><td colspan="4" style="text-align:center; color:#666;">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -101,8 +116,36 @@
         };
         firebase.initializeApp(firebaseConfig);
         var db = firebase.firestore();
+        var auth = firebase.auth();
 
-        // --- 1. RECHARGE FUNCTION ---
+        // --- AUTH LOGIC ---
+        auth.onAuthStateChanged(function(user) {
+            if (user) {
+                // User is signed in, show dashboard
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('dashboard-section').style.display = 'flex';
+                loadHistory(); // Load data
+            } else {
+                // User is signed out, show login
+                document.getElementById('login-section').style.display = 'flex';
+                document.getElementById('dashboard-section').style.display = 'none';
+            }
+        });
+
+        function adminLogin() {
+            var e = document.getElementById('adminEmail').value;
+            var p = document.getElementById('adminPass').value;
+            var msg = document.getElementById('login-msg');
+            
+            msg.innerText = "Verifying...";
+            
+            auth.signInWithEmailAndPassword(e, p)
+                .catch(function(error) {
+                    msg.innerText = "Error: " + error.message;
+                });
+        }
+
+        // --- RECHARGE LOGIC ---
         async function processRecharge() {
             var email = document.getElementById('uEmail').value.trim();
             var amt = parseInt(document.getElementById('uCredits').value);
@@ -118,115 +161,93 @@
             status.className = "";
 
             try {
-                // A. Find User ID from Email
+                // Check if user exists
                 var snapshot = await db.collection('users').where('email', '==', email).get();
-                
-                if (snapshot.empty) {
-                    throw "User not found! Ask them to log in once.";
-                }
+                if (snapshot.empty) throw "User email not found in database.";
 
                 var userDoc = snapshot.docs[0];
                 var currentCredits = userDoc.data().credits || 0;
                 var newCredits = currentCredits + amt;
 
-                // B. Update User Credits
+                // Update Credits
                 await db.collection('users').doc(userDoc.id).update({ credits: newCredits });
 
-                // C. Log Transaction (For the Table)
+                // Log Transaction
                 await db.collection('transactions').add({
                     email: email,
                     amount: amt,
                     date: firebase.firestore.FieldValue.serverTimestamp(),
-                    type: 'admin_recharge'
+                    type: 'admin_recharge',
+                    admin: auth.currentUser.email
                 });
 
-                status.innerText = `✅ Success! Added ${amt} credits to ${email}. (Total: ${newCredits})`;
+                status.innerText = `✅ Added ${amt} credits to ${email}. Total: ${newCredits}`;
                 status.className = "success";
                 
-                // Clear inputs & Refresh Table
                 document.getElementById('uEmail').value = '';
                 document.getElementById('uCredits').value = '';
-                loadHistory(); // Refresh table immediately
+                loadHistory(); // Refresh table
 
             } catch (error) {
                 console.error(error);
-                status.innerText = "❌ Error: " + (typeof error === 'string' ? error : error.message);
+                status.innerText = "❌ Error: " + error;
                 status.className = "error";
             }
         }
 
-        // --- 2. LOAD HISTORY TABLE ---
+        // --- LOAD HISTORY ---
         function loadHistory() {
             var tbody = document.getElementById('table-body');
-            
-            // Calculate date 15 days ago
             var d = new Date();
-            d.setDate(d.getDate() - 15);
-            var cutoff = firebase.firestore.Timestamp.fromDate(d);
-
+            d.setDate(d.getDate() - 15); // Last 15 days
+            
             db.collection('transactions')
-                .where('date', '>', cutoff)
+                .where('date', '>', d)
                 .orderBy('date', 'desc')
-                .limit(50) // Safety limit
+                .limit(50)
                 .get()
                 .then(snap => {
                     tbody.innerHTML = "";
                     if (snap.empty) {
-                        tbody.innerHTML = "<tr><td colspan='4' style='text-align:center'>No transactions in last 15 days.</td></tr>";
+                        tbody.innerHTML = "<tr><td colspan='4' style='text-align:center'>No transactions found.</td></tr>";
                         return;
                     }
 
                     snap.forEach(doc => {
                         var data = doc.data();
                         var dateObj = data.date ? data.date.toDate() : new Date();
-                        var dateStr = dateObj.toLocaleDateString() + " " + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        var dateStr = dateObj.toLocaleDateString();
                         
                         var row = `
                             <tr>
                                 <td style="color:#aaa;">${dateStr}</td>
                                 <td>${data.email}</td>
-                                <td class="amount-pos">+${data.amount} Cr</td>
-                                <td><span style="background:#132d13; color:#4caf50; padding:2px 6px; borderRadius:4px; font-size:10px;">SUCCESS</span></td>
+                                <td class="amount-pos">+${data.amount}</td>
+                                <td><span style="color:#4caf50;">✔ OK</span></td>
                             </tr>
                         `;
                         tbody.innerHTML += row;
                     });
-                })
-                .catch(err => {
-                    console.error("Table Error:", err);
-                    tbody.innerHTML = `<tr><td colspan='4' style="color:red">Error loading data. (Check Console)</td></tr>`;
                 });
         }
 
-        // --- 3. DOWNLOAD PDF ---
+        // --- DOWNLOAD PDF ---
         function downloadPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            // Header
-            doc.setFontSize(18);
-            doc.text("PNP Recharge Report", 14, 22);
-            doc.setFontSize(11);
-            doc.setTextColor(100);
-            doc.text("Last 15 Days Activity", 14, 30);
-
-            // Generate Table from HTML
+            doc.text("PNP Recharge Report (Last 15 Days)", 14, 20);
+            
             doc.autoTable({ 
                 html: '#trans-table',
-                startY: 40,
+                startY: 30,
                 theme: 'grid',
-                headStyles: { fillColor: [20, 20, 20] },
                 styles: { fontSize: 9 }
             });
 
-            // Save
             var date = new Date().toISOString().split('T')[0];
-            doc.save(`PNP_Report_${date}.pdf`);
+            doc.save(`PNP_Admin_Report_${date}.pdf`);
         }
-
-        // Load table on startup
-        loadHistory();
-
     </script>
 </body>
 </html>
