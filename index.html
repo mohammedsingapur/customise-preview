@@ -262,12 +262,32 @@
                     var img = new Image();
                     img.onload = function(){
                         currentImg = img; imgState={x:0, y:0, zoom:1.0};
-                        document.getElementById('zoom').value=1.0; draw();
+                        document.getElementById('zoom').value=1.0; 
+                        
+                        // --- AUTO-DETECT BACKGROUND COLOR ---
+                        try {
+                            var tempCvs = document.createElement('canvas');
+                            tempCvs.width = 1; tempCvs.height = 1;
+                            var tempCtx = tempCvs.getContext('2d');
+                            // Sample the top-left pixel of the uploaded image
+                            tempCtx.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+                            var p = tempCtx.getImageData(0, 0, 1, 1).data;
+                            
+                            // If pixel is not transparent, convert RGB to Hex and update color picker
+                            if(p[3] > 0) {
+                                var hex = "#" + ("000000" + ((p[0] << 16) | (p[1] << 8) | p[2]).toString(16)).slice(-6);
+                                document.getElementById('clr').value = hex;
+                            }
+                        } catch(err) { console.log("Auto-color skipped"); }
+                        // ------------------------------------
+
+                        draw();
                     };
                     img.src = tempSrc;
                 }).catch(function(e){ alert(e); });
             }
         }
+
 
         // Dragging
         function startDrag(e){ imgState.isDragging=true; imgState.lastX=e.touches?e.touches[0].clientX:e.clientX; imgState.lastY=e.touches?e.touches[0].clientY:e.clientY; }
