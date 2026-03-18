@@ -357,16 +357,27 @@
                     
                     // --- NEW: CHECK HIDDEN BLOCKS ---
                     // If block is NOT hidden, draw the image
+                    
+                                        // --- NEW: CHECK HIDDEN BLOCKS ---
+                    // If block is NOT hidden, draw the image
                     if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
                         ctx.save();
-                        ctx.translate(imgParams.gx + imgState.x, imgParams.gy + imgState.y);
+                        
+                        // NEW LOGIC: Calculate shift so the gap pushes the image apart instead of erasing it
+                        var totalGapsX = (cols.length - 1) * gap * PPI;
+                        var totalGapsY = (rows.length - 1) * gap * PPI;
+                        var shiftX = (cI * gap * PPI) - (totalGapsX / 2);
+                        var shiftY = (rI * gap * PPI) - (totalGapsY / 2);
+
+                        // Apply the shift along with the normal translation
+                        ctx.translate(imgParams.gx + imgState.x + shiftX, imgParams.gy + imgState.y + shiftY);
+                        
                         ctx.scale(zoomLevel, zoomLevel);
                         if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
                         ctx.drawImage(currentImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
                         ctx.restore();
                     }
-                    ctx.restore();
-                    
+
                     ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
                     
