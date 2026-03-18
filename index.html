@@ -356,28 +356,30 @@
                     ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
                     
                     // --- NEW: CHECK HIDDEN BLOCKS ---
-                    // If block is NOT hidden, draw the image
-                    
-                                        // --- NEW: CHECK HIDDEN BLOCKS ---
-                    // If block is NOT hidden, draw the image
                     if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
                         ctx.save();
                         
-                        // NEW LOGIC: Calculate shift so the gap pushes the image apart instead of erasing it
+                        // NEW LOGIC: Calculate shift so the gap pushes the image apart
+                        var accumulatedGapX = cI * gap * PPI;
+                        var accumulatedGapY = rI * gap * PPI;
+                        
+                        // Keep the image centered overall by subtracting half the total gaps
                         var totalGapsX = (cols.length - 1) * gap * PPI;
                         var totalGapsY = (rows.length - 1) * gap * PPI;
-                        var shiftX = (cI * gap * PPI) - (totalGapsX / 2);
-                        var shiftY = (rI * gap * PPI) - (totalGapsY / 2);
-
-                        // Apply the shift along with the normal translation
-                        ctx.translate(imgParams.gx + imgState.x + shiftX, imgParams.gy + imgState.y + shiftY);
                         
+                        var shiftX = accumulatedGapX - (totalGapsX / 2);
+                        var shiftY = accumulatedGapY - (totalGapsY / 2);
+
+                        ctx.translate(imgParams.gx + imgState.x + shiftX, imgParams.gy + imgState.y + shiftY);
                         ctx.scale(zoomLevel, zoomLevel);
                         if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
                         ctx.drawImage(currentImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
                         ctx.restore();
                     }
-
+                    
+                    // THIS LINE WAS MISSING! It stops the clipping so the next boxes can draw.
+                    ctx.restore(); 
+                    
                     ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
                     ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
                     
@@ -388,6 +390,7 @@
 
                     cX += dW + gap*PPI;
                 });
+                
                 cY += h*PPI + gap*PPI;
             });
         }
