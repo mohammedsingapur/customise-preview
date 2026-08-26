@@ -99,10 +99,9 @@
                 <div class="tool-group" onclick="promptVal('sH','Split H')"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">➗</div><span class="tool-label" style="color:var(--acc);">Split H</span></div>
                 <div class="tool-group" onclick="promptVal('gap','Gap')"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">Gap</div><span class="tool-label" style="color:var(--acc);">Gap</span></div>
                 <div class="tool-group">
-                <button class="tool-btn" onclick="generateFoilMask()" title="Extract Gold Foil Mask">✨</button>
-    <span class="tool-label">Foil Mask</span>
-</div>
-
+                <button class="tool-btn" onclick="generateDualFoilProof()" title="Generate Dual Foil Proof">📄</button>
+                <span class="tool-label">Foil Proof</span>
+                </div>
             </div>
 
             <div class="tool-group" onclick="downloadCanvas()"><div class="tool-btn">⬇️</div><span class="tool-label">Save</span></div>
@@ -490,79 +489,161 @@
                 cY += h*PPI + gap*PPI;
             }
         });
-        function generateFoilMask() {
+        function generateDualFoilProof() {
     if (!currentImg) {
         alert("Please upload an image first!");
         return;
     }
 
-    // 1. Create a hidden canvas the exact size of the original image
-    var c = document.createElement('canvas');
-    var cx = c.getContext('2d');
-    c.width = currentImg.width; 
-    c.height = currentImg.height;
-    cx.drawImage(currentImg, 0, 0);
+    // 1. Get dimensions & split settings from your existing controls
+    var gapVal = parseFloat(document.getElementById('gap') ? document.getElementById('gap').value : 0) || 0;
+    var totalW = cols.reduce(function(a, b) { return a + b; }, 0);
+    var totalH = rows.reduce(function(a, b) { return a + b; }, 0);
 
-    // 2. Read the image pixels
-    var imgData = cx.getImageData(0, 0, c.width, c.height);
-    var pixels = imgData.data;
-    var w = c.width;
-    var h = c.height;
+    // 2. Offscreen canvas for Edge Detection (Line Art / Gold Foil Mask)
+    var foilCvs = document.createElement('canvas');
+    foilCvs.width = currentImg.width;
+    foilCvs.height = currentImg.height;
+    var fCtx = foilCvs.getContext('2d');
+    fCtx.drawImage(currentImg, 0, 0);
 
-    // 3. Convert image to grayscale for accurate edge detection
+    var imgData = fCtx.getImageData(0, 0, foilCvs.width, foilCvs.height);
+    var px = imgData.data;
+    var w = foilCvs.width, h = foilCvs.height;
+
+    // Grayscale
     var gray = new Uint8ClampedArray(w * h);
-    for (var i = 0; i < pixels.length; i += 4) {
-        gray[i/4] = 0.299 * pixels[i] + 0.587 * pixels[i+1] + 0.114 * pixels[i+2];
+    for (var i = 0; i < px.length; i += 4) {
+        gray[i / 4] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
     }
 
-    // 4. Sobel Operator Kernels (Math to find vertical and horizontal lines)
-    var kernelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-    var kernelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+    // Sobel Edge Detection
+    var kX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    var kY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
 
-    // 5. Apply the edge detection math to every pixel
     for (var y = 1; y < h - 1; y++) {
         for (var x = 1; x < w - 1; x++) {
-            var px = (y * w + x) * 4;
-            var pixelX = 0;
-            var pixelY = 0;
+            var pIdx = (y * w + x) * 4;
+            var valX = 0, valY = 0;
 
             for (var cy = -1; cy <= 1; cy++) {
                 for (var cx_idx = -1; cx_idx <= 1; cx_idx++) {
-                    var grayIdx = ((y + cy) * w + (x + cx_idx));
-                    var weightX = kernelX[(cy + 1) * 3 + (cx_idx + 1)];
-                    var weightY = kernelY[(cy + 1) * 3 + (cx_idx + 1)];
-                    pixelX += gray[grayIdx] * weightX;
-                    pixelY += gray[grayIdx] * weightY;
+                    var g = gray[(y + cy) * w + (x + cx_idx)];
+                    valX += g * kX[(cy + 1) * 3 + (cx_idx + 1)];
+                    valY += g * kY[(cy + 1) * 3 + (cx_idx + 1)];
                 }
             }
 
-            // Calculate edge strength
-            var magnitude = Math.sqrt(pixelX * pixelX + pixelY * pixelY);
-            
-            // Invert to get black lines on a white background (like your PDF preview)
-            var color = 255 - magnitude;
-            
-            // Threshold: Force light grays to pure white for a clean print file
-            if (color > 180) color = 255; else color = 0;
+            var mag = Math.sqrt(valX * valX + valY * valY);
+            var colorVal = (255 - mag) > 180 ? 255 : 0; // High-contrast clean print lines
 
-            pixels[px] = color;     // Red
-            pixels[px+1] = color;   // Green
-            pixels[px+2] = color;   // Blue
-            pixels[px+3] = 255;     // Alpha
+            px[pIdx] = colorVal;
+            px[pIdx + 1] = colorVal;
+            px[pIdx + 2] = colorVal;
+            px[pIdx + 3] = 255;
         }
     }
-    
-    // 6. Put the new line-art pixels back on the canvas
-    cx.putImageData(imgData, 0, 0);
+    fCtx.putImageData(imgData, 0, 0);
 
-    // 7. Open the result in a new tab so the user can download it
-         var newWin = window.open("");
-    newWin.document.write("<body style='background:#222; text-align:center; color:white; font-family:sans-serif;'>");
-    newWin.document.write("<h2>Gold Foil Line-Art Mask</h2>");
-    newWin.document.write("<p>Right-click the image below and select 'Save Image As'</p>");
-    newWin.document.write("<img src='" + c.toDataURL("image/jpeg", 0.9) + "' style='max-width:90%; border:2px solid white;'>");
-    newWin.document.write("</body>");
+    // 3. Create Master Side-by-Side Proof Canvas
+    var proofCvs = document.createElement('canvas');
+    var targetImgW = 1200;
+    var aspect = currentImg.height / currentImg.width;
+    var targetImgH = Math.round(targetImgW * aspect);
+
+    var padding = 120;
+    var gapBetween = 80;
+    proofCvs.width = (targetImgW * 2) + (padding * 2) + gapBetween;
+    proofCvs.height = targetImgH + (padding * 2) + 140;
+
+    var pCtx = proofCvs.getContext('2d');
+
+    // Background
+    pCtx.fillStyle = "#ffffff";
+    pCtx.fillRect(0, 0, proofCvs.width, proofCvs.height);
+
+    var leftX = padding;
+    var rightX = padding + targetImgW + gapBetween;
+    var topY = padding;
+
+    // --- LEFT SIDE: Full Color Artwork ---
+    pCtx.drawImage(currentImg, leftX, topY, targetImgW, targetImgH);
+    pCtx.strokeStyle = "#333333";
+    pCtx.lineWidth = 2;
+    pCtx.strokeRect(leftX, topY, targetImgW, targetImgH);
+
+    // Draw Panel Split Lines & Measurement Headers
+    var currentXOffset = leftX;
+    pCtx.font = "bold 24px sans-serif";
+    pCtx.textAlign = "center";
+
+    cols.forEach(function(colWidth, idx) {
+        var panelPixelW = (colWidth / totalW) * targetImgW;
+
+        // Red separator line between split panels
+        if (idx > 0) {
+            pCtx.strokeStyle = "red";
+            pCtx.lineWidth = 3;
+            pCtx.beginPath();
+            pCtx.moveTo(currentXOffset, topY);
+            pCtx.lineTo(currentXOffset, topY + targetImgH);
+            pCtx.stroke();
+        }
+
+        // Panel individual width text on top (e.g. "19in (W)")
+        pCtx.fillStyle = "red";
+        pCtx.fillText(colWidth + 'in (W)', currentXOffset + (panelPixelW / 2), topY - 15);
+
+        currentXOffset += panelPixelW;
+    });
+
+    // Overall dimension rulers (Left Artwork)
+    pCtx.fillStyle = "#111111";
+    pCtx.strokeStyle = "#111111";
+    pCtx.lineWidth = 2;
+
+    // Top Total Width Ruler
+    pCtx.beginPath();
+    pCtx.moveTo(leftX, topY - 45);
+    pCtx.lineTo(leftX + targetImgW, topY - 45);
+    pCtx.stroke();
+    pCtx.fillText(totalW + 'in (W)', leftX + (targetImgW / 2), topY - 55);
+
+    // Height Marker on the right of the color image
+    pCtx.save();
+    pCtx.translate(leftX + targetImgW + 35, topY + (targetImgH / 2));
+    pCtx.rotate(Math.PI / 2);
+    pCtx.fillText(totalH + 'in (H)', 0, 0);
+    pCtx.restore();
+
+    // --- RIGHT SIDE: Gold Foil Line Art ---
+    pCtx.drawImage(foilCvs, rightX, topY, targetImgW, targetImgH);
+    pCtx.strokeStyle = "#333333";
+    pCtx.lineWidth = 2;
+    pCtx.strokeRect(rightX, topY, targetImgW, targetImgH);
+
+    // Label under right artwork
+    pCtx.fillStyle = "#1b4d89";
+    pCtx.font = "bold 32px sans-serif";
+    pCtx.textAlign = "left";
+    pCtx.fillText("Gold Foil", rightX, topY + targetImgH + 45);
+
+    // --- BOTTOM PRODUCTION SPECS ---
+    var infoY = topY + targetImgH + 50;
+    pCtx.fillStyle = "#222222";
+    pCtx.font = "20px sans-serif";
+    pCtx.fillText("Size: " + totalW + "in (W) x " + totalH + "in (H)", leftX, infoY);
+    pCtx.fillText("Panels: " + cols.join("in + ") + "in", leftX, infoY + 30);
+
+    // 4. Open Generated Proof for Download
+    var proofWin = window.open("");
+    proofWin.document.write("<body style='margin:0; background:#121212; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:sans-serif; color:white;'>");
+    proofWin.document.write("<h2 style='margin-bottom:10px;'>Wallpaper & Gold Foil Production Proof</h2>");
+    proofWin.document.write("<p style='color:#aaa; font-size:14px; margin-top:0;'>Right click or long-press to save the production sheet image.</p>");
+    proofWin.document.write("<img src='" + proofCvs.toDataURL("image/png") + "' style='max-width:92%; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.8);'>");
+    proofWin.document.write("</body>");
 }
+
 
     </script>
 </body>
