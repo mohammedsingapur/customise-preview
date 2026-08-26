@@ -120,6 +120,44 @@
     </div>
 
     <script>
+
+        
+        function logMsg(msg, color) {
+        var line = document.createElement('div');
+        line.style.color = color || '#00ff66';
+        line.style.borderBottom = '1px solid #222';
+        line.style.padding = '2px 0';
+        line.innerText = '• ' + (typeof msg === 'object' ? JSON.stringify(msg) : msg);
+        box.appendChild(line);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    // Capture standard logs & errors
+    window.addEventListener('error', function(e) {
+        logMsg('ERROR: ' + e.message + ' (Line ' + e.lineno + ')', '#ff4444');
+    });
+
+    window.addEventListener('unhandledrejection', function(e) {
+        logMsg('PROMISE ERROR: ' + e.reason, '#ff4444');
+    });
+
+    var oldLog = console.log;
+    console.log = function() {
+        var args = Array.from(arguments).join(' ');
+        logMsg(args, '#00ff66');
+        oldLog.apply(console, arguments);
+    };
+
+    var oldErr = console.error;
+    console.error = function() {
+        var args = Array.from(arguments).join(' ');
+        logMsg(args, '#ff4444');
+        oldErr.apply(console, arguments);
+    };
+})();
+
+
+        
         // --- FIREBASE CONFIG ---
         var firebaseConfig = {
             apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
@@ -535,42 +573,10 @@
     box.innerHTML = '<strong>[Debug Console Ready]</strong><br>';
     document.body.appendChild(box);
 
-    function logMsg(msg, color) {
-        var line = document.createElement('div');
-        line.style.color = color || '#00ff66';
-        line.style.borderBottom = '1px solid #222';
-        line.style.padding = '2px 0';
-        line.innerText = '• ' + (typeof msg === 'object' ? JSON.stringify(msg) : msg);
-        box.appendChild(line);
-        box.scrollTop = box.scrollHeight;
-    }
-
-    // Capture standard logs & errors
-    window.addEventListener('error', function(e) {
-        logMsg('ERROR: ' + e.message + ' (Line ' + e.lineno + ')', '#ff4444');
-    });
-
-    window.addEventListener('unhandledrejection', function(e) {
-        logMsg('PROMISE ERROR: ' + e.reason, '#ff4444');
-    });
-
-    var oldLog = console.log;
-    console.log = function() {
-        var args = Array.from(arguments).join(' ');
-        logMsg(args, '#00ff66');
-        oldLog.apply(console, arguments);
-    };
-
-    var oldErr = console.error;
-    console.error = function() {
-        var args = Array.from(arguments).join(' ');
-        logMsg(args, '#ff4444');
-        oldErr.apply(console, arguments);
-    };
-})();
+    
 
 
-    window.foilMaskImage = null;
+window.foilMaskImage = null;
 window.isFoilSplit = false;
 
 function toggleFoilMode() {
