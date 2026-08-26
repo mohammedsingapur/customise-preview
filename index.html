@@ -99,7 +99,7 @@
                 <div class="tool-group" onclick="promptVal('sH','Split H')"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">➗</div><span class="tool-label" style="color:var(--acc);">Split H</span></div>
                 <div class="tool-group" onclick="promptVal('gap','Gap')"><div class="tool-btn" style="border-color:var(--acc); color:var(--acc);">Gap</div><span class="tool-label" style="color:var(--acc);">Gap</span></div>
                 <div class="tool-group">
-                <button class="tool-btn" onclick="generateDualFoilProof()" title="Generate Dual Foil Proof">📄</button>
+                <button class="tool-btn" onclick="toggleFoilMode()" title="Toggle Foil Proof">📄</button>
                 <span class="tool-label">Foil Proof</span>
                 </div>
             </div>
@@ -375,45 +375,65 @@
                 cols.forEach(function(w, cI){
                     var dW = w*PPI, dH = h*PPI;
                     
-                    ctx.save();
-                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.clip();
-                    ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
+                    // NEW: Determine if we draw 1 wall (normal) or 2 walls (side-by-side)
+                    var passes = window.isFoilBeside ? [0, 1] : [0];
                     
-                    // --- NEW: CHECK HIDDEN BLOCKS ---
-                    if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
+                    passes.forEach(function(passIdx) {
+                        // Math to move the second wall (Foil) to the right of the first one
+                        var totalWallWidth = cols.reduce(function(a,b){return a+b}, 0) * PPI + (cols.length - 1) * gap * PPI;
+                        var extraOffsetX = passIdx * (totalWallWidth + 150); // 150px space between the two walls
+                        var currentCx = cX + extraOffsetX;
+                        
                         ctx.save();
+                        ctx.beginPath(); trace(ctx, currentCx, cY, dW, dH, rShp, PPI, aDepth); ctx.clip();
+                        ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
                         
-                        // NEW LOGIC: Calculate shift so the gap pushes the image apart
-                        var accumulatedGapX = cI * gap * PPI;
-                        var accumulatedGapY = rI * gap * PPI;
-                        
-                        // Keep the image centered overall by subtracting half the total gaps
-                        var totalGapsX = (cols.length - 1) * gap * PPI;
-                        var totalGapsY = (rows.length - 1) * gap * PPI;
-                        
-                        var shiftX = accumulatedGapX - (totalGapsX / 2);
-                        var shiftY = accumulatedGapY - (totalGapsY / 2);
+                        if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
+                            ctx.save();
+                            var accumulatedGapX = cI * gap * PPI;
+                            var accumulatedGapY = rI * gap * PPI;
+                            var totalGapsX = (cols.length - 1) * gap * PPI;
+                            var totalGapsY = (rows.length - 1) * gap * PPI;
+                            var shiftX = accumulatedGapX - (totalGapsX / 2);
+                            var shiftY = accumulatedGapY - (totalGapsY / 2);
 
-                        ctx.translate(imgParams.gx + imgState.x + shiftX, imgParams.gy + imgState.y + shiftY);
-                        ctx.scale(zoomLevel, zoomLevel);
-                        if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
-                        ctx.drawImage(currentImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
-                        ctx.restore();
-                    }
-                    
-                    // THIS LINE WAS MISSING! It stops the clipping so the next boxes can draw.
-                    ctx.restore(); 
-                    
-                    ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
-                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
-                    
-                    var fontSize = 60;
-                    ctx.fillStyle="#333"; ctx.font="bold "+fontSize+"px sans-serif"; ctx.textAlign="center";
-                    ctx.fillText(w+'"', cX+dW/2, cY+dH+70);
-                    ctx.save(); ctx.translate(cX-30, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"', 0,0); ctx.restore();
+                            // Shift the image inside the frame by the same offset
+                            ctx.translate(imgParams.gx + imgState.x + shiftX + extraOffsetX, imgParams.gy + imgState.y + shiftY);
+                            ctx.scale(zoomLevel, zoomLevel);
+                            if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
+                            
+                            // CHOOSE IMAGE: Pass 0 gets original color, Pass 1 gets Foil Mask
+                            var imgToDraw = (passIdx === 1 && window.foilMaskImage) ? window.foilMaskImage : currentImg;
+                            ctx.drawImage(imgToDraw, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
+                            ctx.restore();
+                        }
+                        
+                        ctx.restore(); 
+                        
+                        // Draw Borders
+                        ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
+                        ctx.beginPath(); trace(ctx, currentCx, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
+                        
+                        // Draw Dynamic Text Measurements
+                        var fontSize = 60;
+                        ctx.fillStyle="#333"; ctx.font="bold "+fontSize+"px sans-serif"; ctx.textAlign="center";
+                        ctx.fillText(w+'"', currentCx+dW/2, cY+dH+70);
+                        if (cI === 0) { // Only draw height on first panel of each row
+                            ctx.save(); ctx.translate(currentCx-30, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"', 0,0); ctx.restore();
+                        }
 
+                        // Add "Gold Foil" header above the second wall
+                        if (passIdx === 1 && rI === 0) {
+                            ctx.fillStyle = "#bb86fc"; 
+                            ctx.font = "bold 80px sans-serif";
+                            ctx.fillText("Gold Foil", currentCx+dW/2, cY-50);
+                        }
+                    });
+
+                    // Advance the starting X for the next panel split
                     cX += dW + gap*PPI;
                 });
+
                 
                 cY += h*PPI + gap*PPI;
             });
@@ -547,153 +567,72 @@
 })();
 
 
+    // Global variables to store the mask and track if the toggle is on
+window.foilMaskImage = null;
+window.isFoilBeside = false;
 
-        function generateDualFoilProof() {
-    console.log("▶ Button tapped: Starting Foil Proof generation...");
-
-    try {
-        if (!currentImg) {
-            console.error("Failed: No currentImg found. Please upload an image first.");
-            alert("Please upload an image first!");
-            return;
-        }
-
-        console.log("Image loaded: " + currentImg.width + "x" + currentImg.height);
-
-        var safeCols = (typeof cols !== 'undefined' && cols && cols.length > 0) ? cols : [79];
-        var safeRows = (typeof rows !== 'undefined' && rows && rows.length > 0) ? rows : [33];
-        var totalW = safeCols.reduce(function(a, b) { return a + b; }, 0);
-        var totalH = safeRows.reduce(function(a, b) { return a + b; }, 0);
-
-        console.log("Dimensions: " + totalW + "in x " + totalH + "in");
-
-        // 1. Edge detection canvas
-        var foilCvs = document.createElement('canvas');
-        foilCvs.width = currentImg.width;
-        foilCvs.height = currentImg.height;
-        var fCtx = foilCvs.getContext('2d');
-        fCtx.drawImage(currentImg, 0, 0);
-
-        console.log("Reading pixel data for foil mask...");
-        var imgData = fCtx.getImageData(0, 0, foilCvs.width, foilCvs.height);
-        var px = imgData.data;
-        var w = foilCvs.width, h = foilCvs.height;
-
-        var gray = new Uint8ClampedArray(w * h);
-        for (var i = 0; i < px.length; i += 4) {
-            gray[i / 4] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-        }
-
-        var kX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-        var kY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-
-        for (var y = 1; y < h - 1; y++) {
-            for (var x = 1; x < w - 1; x++) {
-                var pIdx = (y * w + x) * 4;
-                var valX = 0, valY = 0;
-
-                for (var cy = -1; cy <= 1; cy++) {
-                    for (var cx_idx = -1; cx_idx <= 1; cx_idx++) {
-                        var g = gray[(y + cy) * w + (x + cx_idx)];
-                        valX += g * kX[(cy + 1) * 3 + (cx_idx + 1)];
-                        valY += g * kY[(cy + 1) * 3 + (cx_idx + 1)];
-                    }
-                }
-
-                var mag = Math.sqrt(valX * valX + valY * valY);
-                var colorVal = (255 - mag) > 180 ? 255 : 0;
-
-                px[pIdx] = colorVal;
-                px[pIdx + 1] = colorVal;
-                px[pIdx + 2] = colorVal;
-                px[pIdx + 3] = 255;
-            }
-        }
-        fCtx.putImageData(imgData, 0, 0);
-        console.log("Foil mask generated successfully.");
-
-        // 2. Proof Canvas
-        var proofCvs = document.createElement('canvas');
-        var targetImgW = 1000;
-        var aspect = currentImg.height / currentImg.width;
-        var targetImgH = Math.round(targetImgW * aspect);
-        var padding = 80;
-        var gapBetween = 50;
-
-        proofCvs.width = (targetImgW * 2) + (padding * 2) + gapBetween;
-        proofCvs.height = targetImgH + (padding * 2) + 120;
-
-        var pCtx = proofCvs.getContext('2d');
-        pCtx.fillStyle = "#ffffff";
-        pCtx.fillRect(0, 0, proofCvs.width, proofCvs.height);
-
-        var leftX = padding;
-        var rightX = padding + targetImgW + gapBetween;
-        var topY = padding;
-
-        pCtx.drawImage(currentImg, leftX, topY, targetImgW, targetImgH);
-        pCtx.strokeStyle = "#333333";
-        pCtx.lineWidth = 2;
-        pCtx.strokeRect(leftX, topY, targetImgW, targetImgH);
-
-        var currentXOffset = leftX;
-        pCtx.font = "bold 20px sans-serif";
-        pCtx.textAlign = "center";
-
-        safeCols.forEach(function(colWidth, idx) {
-            var panelPixelW = (colWidth / totalW) * targetImgW;
-            if (idx > 0) {
-                pCtx.strokeStyle = "red";
-                pCtx.lineWidth = 2;
-                pCtx.beginPath();
-                pCtx.moveTo(currentXOffset, topY);
-                pCtx.lineTo(currentXOffset, topY + targetImgH);
-                pCtx.stroke();
-            }
-            pCtx.fillStyle = "red";
-            pCtx.fillText(colWidth + 'in (W)', currentXOffset + (panelPixelW / 2), topY - 10);
-            currentXOffset += panelPixelW;
-        });
-
-        pCtx.fillStyle = "#111111";
-        pCtx.strokeStyle = "#111111";
-        pCtx.lineWidth = 2;
-        pCtx.beginPath();
-        pCtx.moveTo(leftX, topY - 35);
-        pCtx.lineTo(leftX + targetImgW, topY - 35);
-        pCtx.stroke();
-        pCtx.fillText(totalW + 'in (W)', leftX + (targetImgW / 2), topY - 45);
-
-        // Right side line art
-        pCtx.drawImage(foilCvs, rightX, topY, targetImgW, targetImgH);
-        pCtx.strokeStyle = "#333333";
-        pCtx.lineWidth = 2;
-        pCtx.strokeRect(rightX, topY, targetImgW, targetImgH);
-
-        pCtx.fillStyle = "#1b4d89";
-        pCtx.font = "bold 26px sans-serif";
-        pCtx.textAlign = "left";
-        pCtx.fillText("Gold Foil", rightX, topY + targetImgH + 35);
-
-        console.log("Proof canvas drawn. Exporting image...");
-
-        var dataURL = proofCvs.toDataURL("image/jpeg", 0.85);
-        var link = document.createElement("a");
-        link.href = dataURL;
-        link.download = "Wallpaper_Proof_" + Date.now() + ".jpg";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        console.log("✔ Done! Download triggered.");
-
-    } catch (err) {
-        console.error("FATAL ERROR: " + err.message);
+function toggleFoilMode() {
+    if (!currentImg) {
+        alert("Please upload an image first!");
+        return;
     }
+
+    // If it's already on, turn it off and redraw the normal canvas
+    if (window.isFoilBeside) {
+        window.isFoilBeside = false;
+        if(typeof draw === 'function') draw();
+        return;
+    }
+
+    // 1. Generate the foil mask silently in the background
+    var foilCvs = document.createElement('canvas');
+    foilCvs.width = currentImg.width;
+    foilCvs.height = currentImg.height;
+    var fCtx = foilCvs.getContext('2d');
+    fCtx.drawImage(currentImg, 0, 0);
+
+    var imgData = fCtx.getImageData(0, 0, foilCvs.width, foilCvs.height);
+    var px = imgData.data;
+    var w = foilCvs.width, h = foilCvs.height;
+
+    var gray = new Uint8ClampedArray(w * h);
+    for (var i = 0; i < px.length; i += 4) {
+        gray[i / 4] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+    }
+
+    var kX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    var kY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+    for (var y = 1; y < h - 1; y++) {
+        for (var x = 1; x < w - 1; x++) {
+            var pIdx = (y * w + x) * 4;
+            var valX = 0, valY = 0;
+            for (var cy = -1; cy <= 1; cy++) {
+                for (var cx_idx = -1; cx_idx <= 1; cx_idx++) {
+                    var g = gray[(y + cy) * w + (x + cx_idx)];
+                    valX += g * kX[(cy + 1) * 3 + (cx_idx + 1)];
+                    valY += g * kY[(cy + 1) * 3 + (cx_idx + 1)];
+                }
+            }
+            var mag = Math.sqrt(valX * valX + valY * valY);
+            var colorVal = (255 - mag) > 180 ? 255 : 0;
+            px[pIdx] = px[pIdx + 1] = px[pIdx + 2] = colorVal;
+            px[pIdx + 3] = 255;
+        }
+    }
+    fCtx.putImageData(imgData, 0, 0);
+
+    // 2. Save the mask and trigger the canvas redraw
+    var img = new Image();
+    img.onload = function() {
+        window.foilMaskImage = img;
+        window.isFoilBeside = true;
+        if(typeof draw === 'function') draw(); 
+    };
+    img.src = foilCvs.toDataURL("image/png");
 }
 
-
-
+                        
 
     </script>
 </body>
