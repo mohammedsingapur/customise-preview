@@ -489,160 +489,154 @@
                 cY += h*PPI + gap*PPI;
             }
         });
+            
         function generateDualFoilProof() {
-    if (!currentImg) {
-        alert("Please upload an image first!");
-        return;
-    }
+    try {
+        if (!currentImg) {
+            alert("Please upload an image first!");
+            return;
+        }
 
-    // 1. Get dimensions & split settings from your existing controls
-    var gapVal = parseFloat(document.getElementById('gap') ? document.getElementById('gap').value : 0) || 0;
-    var totalW = cols.reduce(function(a, b) { return a + b; }, 0);
-    var totalH = rows.reduce(function(a, b) { return a + b; }, 0);
+        // 1. Safe fallback just in case the user hasn't used the split tool yet
+        var safeCols = (typeof cols !== 'undefined' && cols.length > 0) ? cols : [79];
+        var safeRows = (typeof rows !== 'undefined' && rows.length > 0) ? rows : [33];
+        var totalW = safeCols.reduce(function(a, b) { return a + b; }, 0);
+        var totalH = safeRows.reduce(function(a, b) { return a + b; }, 0);
 
-    // 2. Offscreen canvas for Edge Detection (Line Art / Gold Foil Mask)
-    var foilCvs = document.createElement('canvas');
-    foilCvs.width = currentImg.width;
-    foilCvs.height = currentImg.height;
-    var fCtx = foilCvs.getContext('2d');
-    fCtx.drawImage(currentImg, 0, 0);
+        // 2. Offscreen canvas for Edge Detection (Line Art / Gold Foil Mask)
+        var foilCvs = document.createElement('canvas');
+        foilCvs.width = currentImg.width;
+        foilCvs.height = currentImg.height;
+        var fCtx = foilCvs.getContext('2d');
+        fCtx.drawImage(currentImg, 0, 0);
 
-    var imgData = fCtx.getImageData(0, 0, foilCvs.width, foilCvs.height);
-    var px = imgData.data;
-    var w = foilCvs.width, h = foilCvs.height;
+        var imgData = fCtx.getImageData(0, 0, foilCvs.width, foilCvs.height);
+        var px = imgData.data;
+        var w = foilCvs.width, h = foilCvs.height;
 
-    // Grayscale
-    var gray = new Uint8ClampedArray(w * h);
-    for (var i = 0; i < px.length; i += 4) {
-        gray[i / 4] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-    }
+        var gray = new Uint8ClampedArray(w * h);
+        for (var i = 0; i < px.length; i += 4) {
+            gray[i / 4] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+        }
 
-    // Sobel Edge Detection
-    var kX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-    var kY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+        var kX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+        var kY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
 
-    for (var y = 1; y < h - 1; y++) {
-        for (var x = 1; x < w - 1; x++) {
-            var pIdx = (y * w + x) * 4;
-            var valX = 0, valY = 0;
+        for (var y = 1; y < h - 1; y++) {
+            for (var x = 1; x < w - 1; x++) {
+                var pIdx = (y * w + x) * 4;
+                var valX = 0, valY = 0;
 
-            for (var cy = -1; cy <= 1; cy++) {
-                for (var cx_idx = -1; cx_idx <= 1; cx_idx++) {
-                    var g = gray[(y + cy) * w + (x + cx_idx)];
-                    valX += g * kX[(cy + 1) * 3 + (cx_idx + 1)];
-                    valY += g * kY[(cy + 1) * 3 + (cx_idx + 1)];
+                for (var cy = -1; cy <= 1; cy++) {
+                    for (var cx_idx = -1; cx_idx <= 1; cx_idx++) {
+                        var g = gray[(y + cy) * w + (x + cx_idx)];
+                        valX += g * kX[(cy + 1) * 3 + (cx_idx + 1)];
+                        valY += g * kY[(cy + 1) * 3 + (cx_idx + 1)];
+                    }
                 }
+
+                var mag = Math.sqrt(valX * valX + valY * valY);
+                var colorVal = (255 - mag) > 180 ? 255 : 0; 
+
+                px[pIdx] = colorVal;
+                px[pIdx + 1] = colorVal;
+                px[pIdx + 2] = colorVal;
+                px[pIdx + 3] = 255;
             }
-
-            var mag = Math.sqrt(valX * valX + valY * valY);
-            var colorVal = (255 - mag) > 180 ? 255 : 0; // High-contrast clean print lines
-
-            px[pIdx] = colorVal;
-            px[pIdx + 1] = colorVal;
-            px[pIdx + 2] = colorVal;
-            px[pIdx + 3] = 255;
         }
+        fCtx.putImageData(imgData, 0, 0);
+
+        // 3. Create Master Side-by-Side Proof Canvas
+        var proofCvs = document.createElement('canvas');
+        var targetImgW = 1200;
+        var aspect = currentImg.height / currentImg.width;
+        var targetImgH = Math.round(targetImgW * aspect);
+        var padding = 120;
+        var gapBetween = 80;
+        
+        proofCvs.width = (targetImgW * 2) + (padding * 2) + gapBetween;
+        proofCvs.height = targetImgH + (padding * 2) + 140;
+
+        var pCtx = proofCvs.getContext('2d');
+        pCtx.fillStyle = "#ffffff";
+        pCtx.fillRect(0, 0, proofCvs.width, proofCvs.height);
+
+        var leftX = padding;
+        var rightX = padding + targetImgW + gapBetween;
+        var topY = padding;
+
+        // --- LEFT SIDE: Full Color Artwork ---
+        pCtx.drawImage(currentImg, leftX, topY, targetImgW, targetImgH);
+        pCtx.strokeStyle = "#333333";
+        pCtx.lineWidth = 2;
+        pCtx.strokeRect(leftX, topY, targetImgW, targetImgH);
+
+        var currentXOffset = leftX;
+        pCtx.font = "bold 24px sans-serif";
+        pCtx.textAlign = "center";
+
+        safeCols.forEach(function(colWidth, idx) {
+            var panelPixelW = (colWidth / totalW) * targetImgW;
+            if (idx > 0) {
+                pCtx.strokeStyle = "red";
+                pCtx.lineWidth = 3;
+                pCtx.beginPath();
+                pCtx.moveTo(currentXOffset, topY);
+                pCtx.lineTo(currentXOffset, topY + targetImgH);
+                pCtx.stroke();
+            }
+            pCtx.fillStyle = "red";
+            pCtx.fillText(colWidth + 'in (W)', currentXOffset + (panelPixelW / 2), topY - 15);
+            currentXOffset += panelPixelW;
+        });
+
+        pCtx.fillStyle = "#111111";
+        pCtx.strokeStyle = "#111111";
+        pCtx.lineWidth = 2;
+        pCtx.beginPath();
+        pCtx.moveTo(leftX, topY - 45);
+        pCtx.lineTo(leftX + targetImgW, topY - 45);
+        pCtx.stroke();
+        pCtx.fillText(totalW + 'in (W)', leftX + (targetImgW / 2), topY - 55);
+
+        pCtx.save();
+        pCtx.translate(leftX + targetImgW + 35, topY + (targetImgH / 2));
+        pCtx.rotate(Math.PI / 2);
+        pCtx.fillText(totalH + 'in (H)', 0, 0);
+        pCtx.restore();
+
+        // --- RIGHT SIDE: Gold Foil Line Art ---
+        pCtx.drawImage(foilCvs, rightX, topY, targetImgW, targetImgH);
+        pCtx.strokeStyle = "#333333";
+        pCtx.lineWidth = 2;
+        pCtx.strokeRect(rightX, topY, targetImgW, targetImgH);
+
+        pCtx.fillStyle = "#1b4d89";
+        pCtx.font = "bold 32px sans-serif";
+        pCtx.textAlign = "left";
+        pCtx.fillText("Gold Foil", rightX, topY + targetImgH + 45);
+
+        var infoY = topY + targetImgH + 50;
+        pCtx.fillStyle = "#222222";
+        pCtx.font = "20px sans-serif";
+        pCtx.fillText("Size: " + totalW + "in (W) x " + totalH + "in (H)", leftX, infoY);
+        pCtx.fillText("Panels: " + safeCols.join("in + ") + "in", leftX, infoY + 30);
+
+        // 4. MOBILE SAFE FIX: Direct Download instead of New Tab
+        var dataURL = proofCvs.toDataURL("image/jpeg", 0.9);
+        var link = document.createElement("a");
+        link.href = dataURL;
+        link.download = "Wallpaper_Proof_" + new Date().getTime() + ".jpg";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (err) {
+        // If anything breaks, it will now pop up an alert telling us exactly what went wrong!
+        alert("Error generating proof: " + err.message);
     }
-    fCtx.putImageData(imgData, 0, 0);
-
-    // 3. Create Master Side-by-Side Proof Canvas
-    var proofCvs = document.createElement('canvas');
-    var targetImgW = 1200;
-    var aspect = currentImg.height / currentImg.width;
-    var targetImgH = Math.round(targetImgW * aspect);
-
-    var padding = 120;
-    var gapBetween = 80;
-    proofCvs.width = (targetImgW * 2) + (padding * 2) + gapBetween;
-    proofCvs.height = targetImgH + (padding * 2) + 140;
-
-    var pCtx = proofCvs.getContext('2d');
-
-    // Background
-    pCtx.fillStyle = "#ffffff";
-    pCtx.fillRect(0, 0, proofCvs.width, proofCvs.height);
-
-    var leftX = padding;
-    var rightX = padding + targetImgW + gapBetween;
-    var topY = padding;
-
-    // --- LEFT SIDE: Full Color Artwork ---
-    pCtx.drawImage(currentImg, leftX, topY, targetImgW, targetImgH);
-    pCtx.strokeStyle = "#333333";
-    pCtx.lineWidth = 2;
-    pCtx.strokeRect(leftX, topY, targetImgW, targetImgH);
-
-    // Draw Panel Split Lines & Measurement Headers
-    var currentXOffset = leftX;
-    pCtx.font = "bold 24px sans-serif";
-    pCtx.textAlign = "center";
-
-    cols.forEach(function(colWidth, idx) {
-        var panelPixelW = (colWidth / totalW) * targetImgW;
-
-        // Red separator line between split panels
-        if (idx > 0) {
-            pCtx.strokeStyle = "red";
-            pCtx.lineWidth = 3;
-            pCtx.beginPath();
-            pCtx.moveTo(currentXOffset, topY);
-            pCtx.lineTo(currentXOffset, topY + targetImgH);
-            pCtx.stroke();
-        }
-
-        // Panel individual width text on top (e.g. "19in (W)")
-        pCtx.fillStyle = "red";
-        pCtx.fillText(colWidth + 'in (W)', currentXOffset + (panelPixelW / 2), topY - 15);
-
-        currentXOffset += panelPixelW;
-    });
-
-    // Overall dimension rulers (Left Artwork)
-    pCtx.fillStyle = "#111111";
-    pCtx.strokeStyle = "#111111";
-    pCtx.lineWidth = 2;
-
-    // Top Total Width Ruler
-    pCtx.beginPath();
-    pCtx.moveTo(leftX, topY - 45);
-    pCtx.lineTo(leftX + targetImgW, topY - 45);
-    pCtx.stroke();
-    pCtx.fillText(totalW + 'in (W)', leftX + (targetImgW / 2), topY - 55);
-
-    // Height Marker on the right of the color image
-    pCtx.save();
-    pCtx.translate(leftX + targetImgW + 35, topY + (targetImgH / 2));
-    pCtx.rotate(Math.PI / 2);
-    pCtx.fillText(totalH + 'in (H)', 0, 0);
-    pCtx.restore();
-
-    // --- RIGHT SIDE: Gold Foil Line Art ---
-    pCtx.drawImage(foilCvs, rightX, topY, targetImgW, targetImgH);
-    pCtx.strokeStyle = "#333333";
-    pCtx.lineWidth = 2;
-    pCtx.strokeRect(rightX, topY, targetImgW, targetImgH);
-
-    // Label under right artwork
-    pCtx.fillStyle = "#1b4d89";
-    pCtx.font = "bold 32px sans-serif";
-    pCtx.textAlign = "left";
-    pCtx.fillText("Gold Foil", rightX, topY + targetImgH + 45);
-
-    // --- BOTTOM PRODUCTION SPECS ---
-    var infoY = topY + targetImgH + 50;
-    pCtx.fillStyle = "#222222";
-    pCtx.font = "20px sans-serif";
-    pCtx.fillText("Size: " + totalW + "in (W) x " + totalH + "in (H)", leftX, infoY);
-    pCtx.fillText("Panels: " + cols.join("in + ") + "in", leftX, infoY + 30);
-
-    // 4. Open Generated Proof for Download
-    var proofWin = window.open("");
-    proofWin.document.write("<body style='margin:0; background:#121212; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:sans-serif; color:white;'>");
-    proofWin.document.write("<h2 style='margin-bottom:10px;'>Wallpaper & Gold Foil Production Proof</h2>");
-    proofWin.document.write("<p style='color:#aaa; font-size:14px; margin-top:0;'>Right click or long-press to save the production sheet image.</p>");
-    proofWin.document.write("<img src='" + proofCvs.toDataURL("image/png") + "' style='max-width:92%; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.8);'>");
-    proofWin.document.write("</body>");
 }
+
 
 
     </script>
