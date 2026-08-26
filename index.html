@@ -489,27 +489,92 @@
                 cY += h*PPI + gap*PPI;
             }
         });
-            
+
+
+
+        // --- ON-SCREEN MOBILE CONSOLE LOG ---
+(function() {
+    var box = document.createElement('div');
+    box.id = 'debug-console';
+    box.style.position = 'fixed';
+    box.style.bottom = '0';
+    box.style.left = '0';
+    box.style.right = '0';
+    box.style.maxHeight = '180px';
+    box.style.overflowY = 'auto';
+    box.style.background = 'rgba(0, 0, 0, 0.9)';
+    box.style.color = '#00ff66';
+    box.style.fontFamily = 'monospace';
+    box.style.fontSize = '11px';
+    box.style.padding = '8px';
+    box.style.zIndex = '99999';
+    box.style.borderTop = '2px solid #ff4444';
+    box.innerHTML = '<strong>[Debug Console Ready]</strong><br>';
+    document.body.appendChild(box);
+
+    function logMsg(msg, color) {
+        var line = document.createElement('div');
+        line.style.color = color || '#00ff66';
+        line.style.borderBottom = '1px solid #222';
+        line.style.padding = '2px 0';
+        line.innerText = '• ' + (typeof msg === 'object' ? JSON.stringify(msg) : msg);
+        box.appendChild(line);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    // Capture standard logs & errors
+    window.addEventListener('error', function(e) {
+        logMsg('ERROR: ' + e.message + ' (Line ' + e.lineno + ')', '#ff4444');
+    });
+
+    window.addEventListener('unhandledrejection', function(e) {
+        logMsg('PROMISE ERROR: ' + e.reason, '#ff4444');
+    });
+
+    var oldLog = console.log;
+    console.log = function() {
+        var args = Array.from(arguments).join(' ');
+        logMsg(args, '#00ff66');
+        oldLog.apply(console, arguments);
+    };
+
+    var oldErr = console.error;
+    console.error = function() {
+        var args = Array.from(arguments).join(' ');
+        logMsg(args, '#ff4444');
+        oldErr.apply(console, arguments);
+    };
+})();
+
+
+
         function generateDualFoilProof() {
+    console.log("▶ Button tapped: Starting Foil Proof generation...");
+
     try {
         if (!currentImg) {
+            console.error("Failed: No currentImg found. Please upload an image first.");
             alert("Please upload an image first!");
             return;
         }
 
-        // 1. Safe fallback just in case the user hasn't used the split tool yet
-        var safeCols = (typeof cols !== 'undefined' && cols.length > 0) ? cols : [79];
-        var safeRows = (typeof rows !== 'undefined' && rows.length > 0) ? rows : [33];
+        console.log("Image loaded: " + currentImg.width + "x" + currentImg.height);
+
+        var safeCols = (typeof cols !== 'undefined' && cols && cols.length > 0) ? cols : [79];
+        var safeRows = (typeof rows !== 'undefined' && rows && rows.length > 0) ? rows : [33];
         var totalW = safeCols.reduce(function(a, b) { return a + b; }, 0);
         var totalH = safeRows.reduce(function(a, b) { return a + b; }, 0);
 
-        // 2. Offscreen canvas for Edge Detection (Line Art / Gold Foil Mask)
+        console.log("Dimensions: " + totalW + "in x " + totalH + "in");
+
+        // 1. Edge detection canvas
         var foilCvs = document.createElement('canvas');
         foilCvs.width = currentImg.width;
         foilCvs.height = currentImg.height;
         var fCtx = foilCvs.getContext('2d');
         fCtx.drawImage(currentImg, 0, 0);
 
+        console.log("Reading pixel data for foil mask...");
         var imgData = fCtx.getImageData(0, 0, foilCvs.width, foilCvs.height);
         var px = imgData.data;
         var w = foilCvs.width, h = foilCvs.height;
@@ -536,7 +601,7 @@
                 }
 
                 var mag = Math.sqrt(valX * valX + valY * valY);
-                var colorVal = (255 - mag) > 180 ? 255 : 0; 
+                var colorVal = (255 - mag) > 180 ? 255 : 0;
 
                 px[pIdx] = colorVal;
                 px[pIdx + 1] = colorVal;
@@ -545,17 +610,18 @@
             }
         }
         fCtx.putImageData(imgData, 0, 0);
+        console.log("Foil mask generated successfully.");
 
-        // 3. Create Master Side-by-Side Proof Canvas
+        // 2. Proof Canvas
         var proofCvs = document.createElement('canvas');
-        var targetImgW = 1200;
+        var targetImgW = 1000;
         var aspect = currentImg.height / currentImg.width;
         var targetImgH = Math.round(targetImgW * aspect);
-        var padding = 120;
-        var gapBetween = 80;
-        
+        var padding = 80;
+        var gapBetween = 50;
+
         proofCvs.width = (targetImgW * 2) + (padding * 2) + gapBetween;
-        proofCvs.height = targetImgH + (padding * 2) + 140;
+        proofCvs.height = targetImgH + (padding * 2) + 120;
 
         var pCtx = proofCvs.getContext('2d');
         pCtx.fillStyle = "#ffffff";
@@ -565,28 +631,27 @@
         var rightX = padding + targetImgW + gapBetween;
         var topY = padding;
 
-        // --- LEFT SIDE: Full Color Artwork ---
         pCtx.drawImage(currentImg, leftX, topY, targetImgW, targetImgH);
         pCtx.strokeStyle = "#333333";
         pCtx.lineWidth = 2;
         pCtx.strokeRect(leftX, topY, targetImgW, targetImgH);
 
         var currentXOffset = leftX;
-        pCtx.font = "bold 24px sans-serif";
+        pCtx.font = "bold 20px sans-serif";
         pCtx.textAlign = "center";
 
         safeCols.forEach(function(colWidth, idx) {
             var panelPixelW = (colWidth / totalW) * targetImgW;
             if (idx > 0) {
                 pCtx.strokeStyle = "red";
-                pCtx.lineWidth = 3;
+                pCtx.lineWidth = 2;
                 pCtx.beginPath();
                 pCtx.moveTo(currentXOffset, topY);
                 pCtx.lineTo(currentXOffset, topY + targetImgH);
                 pCtx.stroke();
             }
             pCtx.fillStyle = "red";
-            pCtx.fillText(colWidth + 'in (W)', currentXOffset + (panelPixelW / 2), topY - 15);
+            pCtx.fillText(colWidth + 'in (W)', currentXOffset + (panelPixelW / 2), topY - 10);
             currentXOffset += panelPixelW;
         });
 
@@ -594,48 +659,39 @@
         pCtx.strokeStyle = "#111111";
         pCtx.lineWidth = 2;
         pCtx.beginPath();
-        pCtx.moveTo(leftX, topY - 45);
-        pCtx.lineTo(leftX + targetImgW, topY - 45);
+        pCtx.moveTo(leftX, topY - 35);
+        pCtx.lineTo(leftX + targetImgW, topY - 35);
         pCtx.stroke();
-        pCtx.fillText(totalW + 'in (W)', leftX + (targetImgW / 2), topY - 55);
+        pCtx.fillText(totalW + 'in (W)', leftX + (targetImgW / 2), topY - 45);
 
-        pCtx.save();
-        pCtx.translate(leftX + targetImgW + 35, topY + (targetImgH / 2));
-        pCtx.rotate(Math.PI / 2);
-        pCtx.fillText(totalH + 'in (H)', 0, 0);
-        pCtx.restore();
-
-        // --- RIGHT SIDE: Gold Foil Line Art ---
+        // Right side line art
         pCtx.drawImage(foilCvs, rightX, topY, targetImgW, targetImgH);
         pCtx.strokeStyle = "#333333";
         pCtx.lineWidth = 2;
         pCtx.strokeRect(rightX, topY, targetImgW, targetImgH);
 
         pCtx.fillStyle = "#1b4d89";
-        pCtx.font = "bold 32px sans-serif";
+        pCtx.font = "bold 26px sans-serif";
         pCtx.textAlign = "left";
-        pCtx.fillText("Gold Foil", rightX, topY + targetImgH + 45);
+        pCtx.fillText("Gold Foil", rightX, topY + targetImgH + 35);
 
-        var infoY = topY + targetImgH + 50;
-        pCtx.fillStyle = "#222222";
-        pCtx.font = "20px sans-serif";
-        pCtx.fillText("Size: " + totalW + "in (W) x " + totalH + "in (H)", leftX, infoY);
-        pCtx.fillText("Panels: " + safeCols.join("in + ") + "in", leftX, infoY + 30);
+        console.log("Proof canvas drawn. Exporting image...");
 
-        // 4. MOBILE SAFE FIX: Direct Download instead of New Tab
-        var dataURL = proofCvs.toDataURL("image/jpeg", 0.9);
+        var dataURL = proofCvs.toDataURL("image/jpeg", 0.85);
         var link = document.createElement("a");
         link.href = dataURL;
-        link.download = "Wallpaper_Proof_" + new Date().getTime() + ".jpg";
+        link.download = "Wallpaper_Proof_" + Date.now() + ".jpg";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
+        console.log("✔ Done! Download triggered.");
+
     } catch (err) {
-        // If anything breaks, it will now pop up an alert telling us exactly what went wrong!
-        alert("Error generating proof: " + err.message);
+        console.error("FATAL ERROR: " + err.message);
     }
 }
+
 
 
 
