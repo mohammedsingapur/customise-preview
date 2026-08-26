@@ -348,19 +348,27 @@ function draw() {
     var vW = cols.reduce((a,b)=>a+b,0) + (cols.length-1)*gap;
     var vH = rows.reduce((a,b)=>a+b,0) + (rows.length-1)*gap;
     
+    // NEW: Calculate space for TWO walls if Foil mode is active
+    var proofGap = 20; // 20 inches of empty space between the two walls
+    var totalVirtualW = window.isFoilSplit ? (vW * 2 + proofGap) : vW;
+
     var HD = 1500; cvs.width = HD; cvs.height = HD;
     var pad = 100, safeW = HD - 2*pad, safeH = HD - 2*pad;
-    var PPI = Math.min(safeW/vW, safeH/vH);
     
-    var startX = pad + (safeW - vW*PPI)/2;
-    var startY = pad + (safeH - vH*PPI)/2;
+    // Scale everything so both walls fit inside the safe area perfectly
+    var PPI = Math.min(safeW / totalVirtualW, safeH / vH);
+    
+    var startX = pad + (safeW - totalVirtualW * PPI) / 2;
+    var startY = pad + (safeH - vH * PPI) / 2;
     
     var imgParams = null;
     if(currentImg) {
         var primaryW_px = tW * PPI;
         var primaryH_px = tH * PPI;
-        var wallCenterX = startX + (vW * PPI) / 2;
-        var wallCenterY = startY + (vH * PPI) / 2;
+        
+        // Calculate the center point of a single wall relative to its start
+        var wallCenterOffsetX = (vW * PPI) / 2;
+        var wallCenterOffsetY = (vH * PPI) / 2;
 
         var fit = document.getElementById('fitMode').value;
         var drawW, drawH;
@@ -375,74 +383,81 @@ function draw() {
             if (imgRatio > targetRatio) { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
             else { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
         }
-        imgParams = { gx: wallCenterX, gy: wallCenterY, w: drawW, h: drawH };
+        imgParams = { cx: wallCenterOffsetX, cy: wallCenterOffsetY, w: drawW, h: drawH };
     }
 
     ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD);
     
-    var cY = startY;
-    rows.forEach(function(h, rI){
-        var cX = startX;
-        var rShp = currentShp;
-        if(currentShp === 'arch-top' && rI !== 0) rShp = 'rect';
-        if(currentShp === 'arch-bottom' && rI !== rows.length - 1) rShp = 'rect';
+    // NEW: Draw loop runs once normally, or twice if Foil mode is active
+    var passes = window.isFoilSplit ? [0, 1] : [0];
+    
+    passes.forEach(function(passIdx) {
+        // Shift the starting X position for the second wall
+        var currentStartX = startX + passIdx * (vW * PPI + proofGap * PPI);
+        var cY = startY;
+        
+        rows.forEach(function(h, rI){
+            var cX = currentStartX;
+            var rShp = currentShp;
+            if(currentShp === 'arch-top' && rI !== 0) rShp = 'rect';
+            if(currentShp === 'arch-bottom' && rI !== rows.length - 1) rShp = 'rect';
 
-        cols.forEach(function(w, cI){
-            var dW = w*PPI, dH = h*PPI;
-            
-            ctx.save();
-            ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.clip();
-            ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
-            
-            if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
+            cols.forEach(function(w, cI){
+                var dW = w*PPI, dH = h*PPI;
+                
                 ctx.save();
-                var accumulatedGapX = cI * gap * PPI;
-                var accumulatedGapY = rI * gap * PPI;
-                var totalGapsX = (cols.length - 1) * gap * PPI;
-                var totalGapsY = (rows.length - 1) * gap * PPI;
-                var shiftX = accumulatedGapX - (totalGapsX / 2);
-                var shiftY = accumulatedGapY - (totalGapsY / 2);
-
-                ctx.translate(imgParams.gx + imgState.x + shiftX, imgParams.gy + imgState.y + shiftY);
-                ctx.scale(zoomLevel, zoomLevel);
-                if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
+                ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.clip();
+                ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
                 
-                ctx.drawImage(currentImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
-                
-                if (window.isFoilSplit && window.foilMaskImage) {
+                if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
                     ctx.save();
-                    ctx.beginPath();
-                    ctx.rect(0, -imgParams.h/2, imgParams.w/2, imgParams.h);
-                    ctx.clip();
-                    ctx.drawImage(window.foilMaskImage, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
-                    ctx.restore();
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(0, -imgParams.h/2);
-                    ctx.lineTo(0, imgParams.h/2);
-                    ctx.strokeStyle = "#bb86fc";
-                    ctx.lineWidth = 4 / zoomLevel; 
-                    ctx.stroke();
-                }
-                ctx.restore();
-            }
-            
-            ctx.restore(); 
-            
-            ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
-            ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
-            
-            var fontSize = 60;
-            ctx.fillStyle="#333"; ctx.font="bold "+fontSize+"px sans-serif"; ctx.textAlign="center";
-            ctx.fillText(w+'"', cX+dW/2, cY+dH+70);
-            
-            if (cI === 0) {
-                ctx.save(); ctx.translate(cX-30, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"', 0,0); ctx.restore();
-            }
+                    var accumulatedGapX = cI * gap * PPI;
+                    var accumulatedGapY = rI * gap * PPI;
+                    var totalGapsX = (cols.length - 1) * gap * PPI;
+                    var totalGapsY = (rows.length - 1) * gap * PPI;
+                    var shiftX = accumulatedGapX - (totalGapsX / 2);
+                    var shiftY = accumulatedGapY - (totalGapsY / 2);
 
-            cX += dW + gap*PPI;
+                    // Find the true center for the specific wall we are drawing right now
+                    var thisWallCenterX = currentStartX + imgParams.cx;
+                    var thisWallCenterY = startY + imgParams.cy;
+
+                    ctx.translate(thisWallCenterX + imgState.x + shiftX, thisWallCenterY + imgState.y + shiftY);
+                    ctx.scale(zoomLevel, zoomLevel);
+                    if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
+                    
+                    // NEW: Pass 0 draws original image, Pass 1 draws Foil image
+                    var targetImg = (passIdx === 1 && window.foilMaskImage) ? window.foilMaskImage : currentImg;
+                    ctx.drawImage(targetImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
+                    
+                    ctx.restore();
+                }
+                
+                ctx.restore(); 
+                
+                ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
+                ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
+                
+                var fontSize = 60;
+                ctx.fillStyle="#333"; ctx.font="bold "+fontSize+"px sans-serif"; ctx.textAlign="center";
+                ctx.fillText(w+'"', cX+dW/2, cY+dH+70);
+                
+                if (cI === 0) {
+                    ctx.save(); ctx.translate(cX-30, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"', 0,0); ctx.restore();
+                }
+
+                cX += dW + gap*PPI;
+            });
+            cY += h*PPI + gap*PPI;
         });
-        cY += h*PPI + gap*PPI;
+
+        // NEW: Add a label above the second wall so the client knows what it is
+        if (passIdx === 1) {
+            ctx.fillStyle = "#1b4d89";
+            ctx.font = "bold 60px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("Gold Foil", currentStartX + (vW * PPI) / 2, startY - 40);
+        }
     });
 }
 
