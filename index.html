@@ -121,39 +121,7 @@
 
     <script>
 // --- ON-SCREEN MOBILE CONSOLE LOG ---
-(function() {
-    var box = document.createElement('div');
-    box.id = 'debug-console';
-    box.style.position = 'fixed';
-    box.style.bottom = '0';
-    box.style.left = '0';
-    box.style.right = '0';
-    box.style.maxHeight = '180px';
-    box.style.overflowY = 'auto';
-    box.style.background = 'rgba(0, 0, 0, 0.9)';
-    box.style.color = '#00ff66';
-    box.style.fontFamily = 'monospace';
-    box.style.fontSize = '11px';
-    box.style.padding = '8px';
-    box.style.zIndex = '99999';
-    box.style.borderTop = '2px solid #ff4444';
-    box.innerHTML = '<strong>[Debug Console Ready]</strong><br>';
-    document.body.appendChild(box);
-    
-    function logMsg(msg, color) {
-        var line = document.createElement('div');
-        line.style.color = color || '#00ff66';
-        line.style.borderBottom = '1px solid #222';
-        line.style.padding = '2px 0';
-        line.innerText = '• ' + (typeof msg === 'object' ? JSON.stringify(msg) : msg);
-        box.appendChild(line);
-        box.scrollTop = box.scrollHeight;
-    }
-    window.addEventListener('error', function(e) { logMsg('ERROR: ' + e.message + ' (Line ' + e.lineno + ')', '#ff4444'); });
-    window.addEventListener('unhandledrejection', function(e) { logMsg('PROMISE ERROR: ' + e.reason, '#ff4444'); });
-    var oldLog = console.log; console.log = function() { var args = Array.from(arguments).join(' '); logMsg(args, '#00ff66'); oldLog.apply(console, arguments); };
-    var oldErr = console.error; console.error = function() { var args = Array.from(arguments).join(' '); logMsg(args, '#ff4444'); oldErr.apply(console, arguments); };
-})();
+
 
 // --- FIREBASE CONFIG ---
 var firebaseConfig = {
