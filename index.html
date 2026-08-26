@@ -120,12 +120,11 @@
     </div>
 
     <script>
-
-
-        (function() {
-        var box = document.createElement('div');
-        box.id = 'debug-console';
-     box.style.position = 'fixed';
+// --- ON-SCREEN MOBILE CONSOLE LOG ---
+(function() {
+    var box = document.createElement('div');
+    box.id = 'debug-console';
+    box.style.position = 'fixed';
     box.style.bottom = '0';
     box.style.left = '0';
     box.style.right = '0';
@@ -140,9 +139,8 @@
     box.style.borderTop = '2px solid #ff4444';
     box.innerHTML = '<strong>[Debug Console Ready]</strong><br>';
     document.body.appendChild(box);
-
-        
-        function logMsg(msg, color) {
+    
+    function logMsg(msg, color) {
         var line = document.createElement('div');
         line.style.color = color || '#00ff66';
         line.style.borderBottom = '1px solid #222';
@@ -151,535 +149,373 @@
         box.appendChild(line);
         box.scrollTop = box.scrollHeight;
     }
-
-    // Capture standard logs & errors
-    window.addEventListener('error', function(e) {
-        logMsg('ERROR: ' + e.message + ' (Line ' + e.lineno + ')', '#ff4444');
-    });
-
-    window.addEventListener('unhandledrejection', function(e) {
-        logMsg('PROMISE ERROR: ' + e.reason, '#ff4444');
-    });
-
-    var oldLog = console.log;
-    console.log = function() {
-        var args = Array.from(arguments).join(' ');
-        logMsg(args, '#00ff66');
-        oldLog.apply(console, arguments);
-    };
-
-    var oldErr = console.error;
-    console.error = function() {
-        var args = Array.from(arguments).join(' ');
-        logMsg(args, '#ff4444');
-        oldErr.apply(console, arguments);
-    };
+    window.addEventListener('error', function(e) { logMsg('ERROR: ' + e.message + ' (Line ' + e.lineno + ')', '#ff4444'); });
+    window.addEventListener('unhandledrejection', function(e) { logMsg('PROMISE ERROR: ' + e.reason, '#ff4444'); });
+    var oldLog = console.log; console.log = function() { var args = Array.from(arguments).join(' '); logMsg(args, '#00ff66'); oldLog.apply(console, arguments); };
+    var oldErr = console.error; console.error = function() { var args = Array.from(arguments).join(' '); logMsg(args, '#ff4444'); oldErr.apply(console, arguments); };
 })();
 
+// --- FIREBASE CONFIG ---
+var firebaseConfig = {
+    apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
+    authDomain: "customise-previews.firebaseapp.com",
+    projectId: "customise-previews",
+    storageBucket: "customise-previews.firebasestorage.app",
+    messagingSenderId: "1073406972228",
+    appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
+};
 
-        
-        // --- FIREBASE CONFIG ---
-        var firebaseConfig = {
-            apiKey: "AIzaSyBup3s_Z3nVZU-O5da0owglWaFXh5Fpfdg",
-            authDomain: "customise-previews.firebaseapp.com",
-            projectId: "customise-previews",
-            storageBucket: "customise-previews.firebasestorage.app",
-            messagingSenderId: "1073406972228",
-            appId: "1:1073406972228:web:71ee5db786b2fe2af40711"
-        };
-
-        var db, auth, currentUser, currentImg, tempSrc, uploadedFileName;
-        var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
-        var hiddenBlocks = {}; // Stores which blocks are plain color
-        
-
-        try {
-            if(typeof firebase === 'undefined') throw new Error("Firebase SDK not loaded!");
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-            auth = firebase.auth();
-        } catch(e) { alert("App Error: " + e.message); }
-
-        // --- LOGIN LOGIC ---
-        function appLogin() {
-            var btn = document.getElementById('btnLogin');
-            var msg = document.getElementById('login-msg');
-            btn.innerText = "Connecting...";
-            if(msg) msg.innerText = "";
-
-            if (!auth) { alert("Firebase not loaded"); return; }
-
-            // 1. FORCE BROWSER TO REMEMBER USER (Fixes the loop)
-            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-                .then(function() {
-                    var provider = new firebase.auth.GoogleAuthProvider();
-                    // 2. USE POPUP (Stops page reload issues)
-                    return auth.signInWithPopup(provider);
-                })
-                .catch(function(error) {
-                    btn.innerText = "📂 Sign in with Google";
-                    if(msg) msg.innerText = error.message;
-                    
-                    if (error.code === 'auth/popup-blocked') {
-                        alert("⚠️ Popup Blocked\nPlease allow popups for this site in your browser settings.");
-                    } else {
-                        alert("Login Failed: " + error.message);
-                    }
-                });
-
-        }
-
-        if(auth) {
-            auth.getRedirectResult().catch(function(error) {
-                console.error(error);
-            });
-
-            auth.onAuthStateChanged(function(user) {
-                if(user) {
-                    currentUser = user;
-                    document.getElementById('login-view').style.display = 'none';
-                    document.getElementById('app-view').style.display = 'flex';
-                    
-                    // --- UPDATED: SHOW EMAIL ID ---
-                    document.getElementById('userName').innerText = user.email;
-                    
-                    db.collection('users').doc(user.uid).onSnapshot(function(doc){
-                        if(!doc.exists) db.collection('users').doc(user.uid).set({email:user.email, credits:10});
-                        else document.getElementById('creditDisplay').innerText = (doc.data().credits||0) + " Cr";
-                    });
-                    setTimeout(draw, 500);
-                } else {
-                    document.getElementById('login-view').style.display = 'flex';
-                    document.getElementById('app-view').style.display = 'none';
-                }
-            });
-        }
-
-
-        // --- APP LOGIC BRIDGE ---
-        function promptVal(id, txt) { var v=prompt(txt, document.getElementById(id).value); if(v!==null){document.getElementById(id).value=v; draw();} }
-        function cycleZoom() { var el=document.getElementById('zoom'); var v=parseFloat(el.value); v=(v>=3)?0.5:v+0.5; el.value=v; document.getElementById('lbl-zoom').innerText=v+"x"; draw(); }
-        function cycleFit() { var el=document.getElementById('fitMode'); var o=['cover','stretch','contain']; el.value=o[(o.indexOf(el.value)+1)%3]; document.getElementById('lbl-fit').innerText=el.value; draw(); }
-        function toggleMirror() { var el=document.getElementById('mirror'); el.checked=!el.checked; draw(); }
-        function cycleShape() { var el=document.getElementById('shp'); var o=['rect','circle','arch-top','arch-bottom']; el.value=o[(o.indexOf(el.value)+1)%4]; document.getElementById('lbl-shape').innerText=el.value.replace('-',' '); draw(); }
-        function updateColor(v) { document.getElementById('clr').value=v; draw(); }
-
-        function handleUploadClick() {
-            document.getElementById('fInput').click();
-            document.getElementById('btn-lock').style.display = 'flex';
-            document.getElementById('pro-grp').style.display = 'none';
-            document.getElementById('sW').value=''; document.getElementById('sH').value='';
-            hiddenBlocks = {}; // Reset plain blocks
-            
-        }
-        
-        function unlockPro() {
-            if(!currentUser) return;
-            var btn = document.getElementById('btn-lock');
-            btn.querySelector('.tool-label').innerText = "...";
-            var ref = db.collection('users').doc(currentUser.uid);
-            db.runTransaction(function(t){
-                return t.get(ref).then(function(doc){
-                    var c = doc.data().credits || 0;
-                    if(c < 2) throw "Need 2 Credits";
-                    t.update(ref, { credits: c - 2 });
-                });
-            }).then(function(){
-                btn.style.display = 'none';
-                document.getElementById('pro-grp').style.display = 'flex';
-                document.getElementById('gap').value='2'; draw();
-            }).catch(function(e){ alert(e); btn.querySelector('.tool-label').innerText = "Unlock"; });
-        }
-
-        // --- CANVAS LOGIC ---
-        var cvs = document.getElementById('cvs');
-        function getV(id){ return parseFloat(document.getElementById(id).value)||0; }
-
-        document.getElementById('fInput').addEventListener('change', function(e) {
-            if(e.target.files[0]) {
-                var file = e.target.files[0];
-                uploadedFileName = file.name.split('.')[0];
-                var reader = new FileReader();
-                reader.onload = function(evt) {
-                    tempSrc = evt.target.result;
-                    document.getElementById('modal-img').src = tempSrc;
-                    document.getElementById('modal').style.display = 'flex';
-                };
-                reader.readAsDataURL(file);
-                e.target.value = '';
-            }
-        });
-
-        function closeModal(pay) {
-            document.getElementById('modal').style.display = 'none';
-            if(pay && tempSrc) {
-                var ref = db.collection('users').doc(currentUser.uid);
-                db.runTransaction(function(t){
-                    return t.get(ref).then(function(doc){
-                        var c = doc.data().credits || 0;
-                        if(c < 4) throw "Low Balance";
-                        t.update(ref, { credits: c - 4 });
-                    });
-                }).then(function(){
-                    var img = new Image();
-                    img.onload = function(){
-                        currentImg = img; imgState={x:0, y:0, zoom:1.0};
-                        document.getElementById('zoom').value=1.0; 
-                        
-                        // --- AUTO-DETECT BACKGROUND COLOR ---
-                        try {
-                            var tempCvs = document.createElement('canvas');
-                            tempCvs.width = 1; tempCvs.height = 1;
-                            var tempCtx = tempCvs.getContext('2d');
-                            // Sample the top-left pixel of the uploaded image
-                            tempCtx.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
-                            var p = tempCtx.getImageData(0, 0, 1, 1).data;
-                            
-                            // If pixel is not transparent, convert RGB to Hex and update color picker
-                            if(p[3] > 0) {
-                                var hex = "#" + ("000000" + ((p[0] << 16) | (p[1] << 8) | p[2]).toString(16)).slice(-6);
-                                document.getElementById('clr').value = hex;
-                            }
-                        } catch(err) { console.log("Auto-color skipped"); }
-                        // ------------------------------------
-
-                        draw();
-                    };
-                    img.src = tempSrc;
-                }).catch(function(e){ alert(e); });
-            }
-        }
-
-
-        // Dragging
-        function startDrag(e){ imgState.isDragging=true; imgState.lastX=e.touches?e.touches[0].clientX:e.clientX; imgState.lastY=e.touches?e.touches[0].clientY:e.clientY; }
-        function doDrag(e){
-            if(!imgState.isDragging) return;
-            e.preventDefault();
-            var cx=e.touches?e.touches[0].clientX:e.clientX; var cy=e.touches?e.touches[0].clientY:e.clientY;
-            imgState.x += (cx - imgState.lastX); imgState.y += (cy - imgState.lastY);
-            imgState.lastX = cx; imgState.lastY = cy;
-            draw();
-        }
-        function stopDrag(){ imgState.isDragging=false; }
-        cvs.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', stopDrag);
-        cvs.addEventListener('touchstart', startDrag); window.addEventListener('touchmove', doDrag); window.addEventListener('touchend', stopDrag);
-
-        function draw() {
-            var ctx = cvs.getContext('2d');
-            
-            // 1. GET VALUES
-            var tW = getV('tW') || 100;
-            var tH = getV('tH') || 90;
-            var gap = getV('gap') || 0;
-            var aDepth = getV('archDepth') || 10;
-            
-            var zoomLevel = parseFloat(document.getElementById('zoom').value) || 1.0;
-            var currentShp = document.getElementById('shp').value;
-            var depthBtn = document.getElementById('btn-arch-depth');
-            if(depthBtn) depthBtn.style.display = currentShp.includes('arch') ? 'flex' : 'none';
-
-            // 2. LAYOUT
-            var sW = document.getElementById('sW').value;
-            var sH = document.getElementById('sH').value;
-            var cols = sW ? sW.split(',').map(Number) : [tW];
-            var rows = sH ? sH.split(',').map(Number) : [tH];
-            
-            var vW = cols.reduce((a,b)=>a+b,0) + (cols.length-1)*gap;
-            var vH = rows.reduce((a,b)=>a+b,0) + (rows.length-1)*gap;
-            
-            var HD = 1500; cvs.width = HD; cvs.height = HD;
-            var pad = 100, safeW = HD - 2*pad, safeH = HD - 2*pad;
-            var PPI = Math.min(safeW/vW, safeH/vH);
-            
-            var startX = pad + (safeW - vW*PPI)/2;
-            var startY = pad + (safeH - vH*PPI)/2;
-            
-            // 3. IMAGE PARAMS
-            var imgParams = null;
-            if(currentImg) {
-                var primaryW_px = tW * PPI;
-                var primaryH_px = tH * PPI;
-                var wallCenterX = startX + (vW * PPI) / 2;
-                var wallCenterY = startY + (vH * PPI) / 2;
-
-                var fit = document.getElementById('fitMode').value;
-                var drawW, drawH;
-                var imgRatio = currentImg.width / currentImg.height;
-                var targetRatio = primaryW_px / primaryH_px;
-
-                if (fit === 'stretch') { drawW = primaryW_px; drawH = primaryH_px; } 
-                else if (fit === 'contain') {
-                    if (imgRatio > targetRatio) { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
-                    else { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
-                } else { 
-                    if (imgRatio > targetRatio) { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
-                    else { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
-                }
-                imgParams = { gx: wallCenterX, gy: wallCenterY, w: drawW, h: drawH };
-            }
-
-            // 4. DRAW LOOP
-            ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD);
-            
-            var cY = startY;
-            rows.forEach(function(h, rI){
-                var cX = startX;
-                
-                var rShp = currentShp;
-                if(currentShp === 'arch-top' && rI !== 0) rShp = 'rect';
-                if(currentShp === 'arch-bottom' && rI !== rows.length - 1) rShp = 'rect';
-
-                
-
-                    // Advance the starting X for the next panel split
-                    cX += dW + gap*PPI;
-                });
-
-                
-
-                function draw() {
-            var ctx = cvs.getContext('2d');
-            
-            // 1. GET VALUES
-            var tW = getV('tW') || 100;
-            var tH = getV('tH') || 90;
-            var gap = getV('gap') || 0;
-            var aDepth = getV('archDepth') || 10;
-            
-            var zoomLevel = parseFloat(document.getElementById('zoom').value) || 1.0;
-            var currentShp = document.getElementById('shp').value;
-            var depthBtn = document.getElementById('btn-arch-depth');
-            if(depthBtn) depthBtn.style.display = currentShp.includes('arch') ? 'flex' : 'none';
-
-            // 2. LAYOUT
-            var sW = document.getElementById('sW').value;
-            var sH = document.getElementById('sH').value;
-            var cols = sW ? sW.split(',').map(Number) : [tW];
-            var rows = sH ? sH.split(',').map(Number) : [tH];
-            
-            var vW = cols.reduce((a,b)=>a+b,0) + (cols.length-1)*gap;
-            var vH = rows.reduce((a,b)=>a+b,0) + (rows.length-1)*gap;
-            
-            var HD = 1500; cvs.width = HD; cvs.height = HD;
-            var pad = 100, safeW = HD - 2*pad, safeH = HD - 2*pad;
-            var PPI = Math.min(safeW/vW, safeH/vH);
-            
-            var startX = pad + (safeW - vW*PPI)/2;
-            var startY = pad + (safeH - vH*PPI)/2;
-            
-            // 3. IMAGE PARAMS
-            var imgParams = null;
-            if(currentImg) {
-                var primaryW_px = tW * PPI;
-                var primaryH_px = tH * PPI;
-                var wallCenterX = startX + (vW * PPI) / 2;
-                var wallCenterY = startY + (vH * PPI) / 2;
-
-                var fit = document.getElementById('fitMode').value;
-                var drawW, drawH;
-                var imgRatio = currentImg.width / currentImg.height;
-                var targetRatio = primaryW_px / primaryH_px;
-
-                if (fit === 'stretch') { drawW = primaryW_px; drawH = primaryH_px; } 
-                else if (fit === 'contain') {
-                    if (imgRatio > targetRatio) { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
-                    else { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
-                } else { 
-                    if (imgRatio > targetRatio) { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
-                    else { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
-                }
-                imgParams = { gx: wallCenterX, gy: wallCenterY, w: drawW, h: drawH };
-            }
-
-            // 4. DRAW LOOP
-            ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD);
-            
-            var cY = startY;
-            rows.forEach(function(h, rI){
-                var cX = startX;
-                
-                var rShp = currentShp;
-                if(currentShp === 'arch-top' && rI !== 0) rShp = 'rect';
-                if(currentShp === 'arch-bottom' && rI !== rows.length - 1) rShp = 'rect';
-
-                cols.forEach(function(w, cI){
-                    var dW = w*PPI, dH = h*PPI;
-                    
-                    ctx.save();
-                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.clip();
-                    ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
-                    
-                    if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
-                        ctx.save();
-                        var accumulatedGapX = cI * gap * PPI;
-                        var accumulatedGapY = rI * gap * PPI;
-                        var totalGapsX = (cols.length - 1) * gap * PPI;
-                        var totalGapsY = (rows.length - 1) * gap * PPI;
-                        var shiftX = accumulatedGapX - (totalGapsX / 2);
-                        var shiftY = accumulatedGapY - (totalGapsY / 2);
-
-                        ctx.translate(imgParams.gx + imgState.x + shiftX, imgParams.gy + imgState.y + shiftY);
-                        ctx.scale(zoomLevel, zoomLevel);
-                        if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
-                        
-                        // 1. Draw the normal color image everywhere
-                        ctx.drawImage(currentImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
-                        
-                        // 2. 50/50 SPLIT EFFECT: Overlay the foil mask on the right half only
-                        if (window.isFoilSplit && window.foilMaskImage) {
-                            ctx.save();
-                            ctx.beginPath();
-                            // Create a mask that covers exactly the right half of the image
-                            ctx.rect(0, -imgParams.h/2, imgParams.w/2, imgParams.h);
-                            ctx.clip();
-                            ctx.drawImage(window.foilMaskImage, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
-                            ctx.restore();
-                            
-                            // Draw a purple divider line right down the middle
-                            ctx.beginPath();
-                            ctx.moveTo(0, -imgParams.h/2);
-                            ctx.lineTo(0, imgParams.h/2);
-                            ctx.strokeStyle = "#bb86fc"; // Neon purple line
-                            ctx.lineWidth = 4 / zoomLevel; 
-                            ctx.stroke();
-                        }
-                        ctx.restore();
-                    }
-                    
-                    ctx.restore(); 
-                    
-                    // Draw outer border and dynamic measurements
-                    ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
-                    ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
-                    
-                    var fontSize = 60;
-                    ctx.fillStyle="#333"; ctx.font="bold "+fontSize+"px sans-serif"; ctx.textAlign="center";
-                    ctx.fillText(w+'"', cX+dW/2, cY+dH+70);
-                    
-                    // Only draw height on first panel of each row
-                    if (cI === 0) {
-                        ctx.save(); ctx.translate(cX-30, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"', 0,0); ctx.restore();
-                    }
-
-                    cX += dW + gap*PPI;
-                });
-                
-                cY += h*PPI + gap*PPI;
-            });
-        }
-
-
-  
-
-
-        function trace(ctx,x,y,w,h,t,p,depthIn){
-            // Use user depth * PPI, or default to 10 inches if missing
-            var d = Math.min(h, (depthIn||10)*p); 
-            
-            if(t==='rect') ctx.rect(x,y,w,h);
-            else if(t==='circle') ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,2*Math.PI);
-            else if(t==='arch-top'){
-                ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); 
-                ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); 
-                ctx.lineTo(x+w,y+h);
-            }
-            else if(t==='arch-bottom'){
-                ctx.moveTo(x,y); ctx.lineTo(x+w,y); 
-                ctx.lineTo(x+w,y+h-d); 
-                ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); 
-                ctx.lineTo(x,y);
-            }
-            ctx.closePath();
-        }
-
-    function downloadCanvas(){var a=document.createElement('a'); a.download='pnp-'+(uploadedFileName||'design')+'.png'; a.href=cvs.toDataURL(); a.click();}
-                // --- DOUBLE TAP HANDLER ---
-    cvs.addEventListener('dblclick', function(e) {
-            // 1. Convert Screen Click to Canvas Coordinates (1500px scale)
-            var rect = cvs.getBoundingClientRect();
-            var scaleX = cvs.width / rect.width;
-            var scaleY = cvs.height / rect.height;
-            var x = (e.clientX - rect.left) * scaleX;
-            var y = (e.clientY - rect.top) * scaleY;
-
-            // 2. Re-calculate Grid Positions (Same math as Draw function)
-            var tW=getV('tW')||100, tH=getV('tH')||90, gap=getV('gap')||0;
-            var sW=document.getElementById('sW').value, sH=document.getElementById('sH').value;
-            var cols=sW?sW.split(',').map(Number):[tW], rows=sH?sH.split(',').map(Number):[tH];
-            
-            var HD=1500;
-            var vW=cols.reduce((a,b)=>a+b,0)+(cols.length-1)*gap;
-            var vH=rows.reduce((a,b)=>a+b,0)+(rows.length-1)*gap;
-            var pad=100, safeW=HD-2*pad, safeH=HD-2*pad;
-            var PPI=Math.min(safeW/vW, safeH/vH);
-            var startX=pad+(safeW-vW*PPI)/2, startY=pad+(safeH-vH*PPI)/2;
-
-            // 3. Find which block was clicked
-            var cY = startY;
-            for(var rI=0; rI<rows.length; rI++) {
-                var h = rows[rI];
-                var cX = startX;
-                for(var cI=0; cI<cols.length; cI++) {
-                    var w = cols[cI];
-                    var dW = w*PPI, dH = h*PPI;
-                    
-                    // Check collision
-                    if(x >= cX && x <= cX+dW && y >= cY && y <= cY+dH) {
-                        var key = rI + '-' + cI;
-                        // Toggle Logic
-                        if(hiddenBlocks[key]) delete hiddenBlocks[key]; // Show Image
-                        else hiddenBlocks[key] = true; // Hide Image
-                        
-                        draw(); // Redraw immediately
-                        return; // Stop checking
-                    }
-                    cX += dW + gap*PPI;
-                }
-                cY += h*PPI + gap*PPI;
-            }
-        });
-
-
-
-        // --- ON-SCREEN MOBILE CONSOLE LOG ---
-    
-
-
+var db, auth, currentUser, currentImg, tempSrc, uploadedFileName;
+var imgState = { x: 0, y: 0, zoom: 1.0, isDragging: false, lastX: 0, lastY: 0 };
+var hiddenBlocks = {}; 
 window.foilMaskImage = null;
 window.isFoilSplit = false;
 
+try {
+    if(typeof firebase === 'undefined') throw new Error("Firebase SDK not loaded!");
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    auth = firebase.auth();
+} catch(e) { console.error("App Error: " + e.message); }
+
+// --- LOGIN LOGIC ---
+function appLogin() {
+    var btn = document.getElementById('btnLogin');
+    var msg = document.getElementById('login-status');
+    btn.innerText = "Connecting...";
+    if(msg) msg.innerText = "";
+    if (!auth) { alert("Firebase not loaded"); return; }
+
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .then(function() {
+            var provider = new firebase.auth.GoogleAuthProvider();
+            return auth.signInWithPopup(provider);
+        })
+        .catch(function(error) {
+            btn.innerHTML = "<span>📂</span> Sign in with Google";
+            if(msg) msg.innerText = error.message;
+            console.error("Login Failed:", error.message);
+            
+            // Custom Error Alerts to figure out exactly why it fails
+            if (error.code === 'auth/popup-blocked') {
+                alert("⚠️ Popup Blocked\nPlease allow popups for this site in your browser settings.");
+            } else if (error.code === 'auth/unauthorized-domain') {
+                alert("⚠️ Domain Not Authorized\nYou must add mohammedsingapur.github.io to your Authorized Domains in the Firebase Console Settings.");
+            } else {
+                alert("Login Failed: " + error.message);
+            }
+        });
+}
+
+if(auth) {
+    auth.getRedirectResult().catch(function(error) { console.error(error); });
+    auth.onAuthStateChanged(function(user) {
+        if(user) {
+            currentUser = user;
+            document.getElementById('login-view').style.display = 'none';
+            document.getElementById('app-view').style.display = 'flex';
+            document.getElementById('userName').innerText = user.email;
+            
+            db.collection('users').doc(user.uid).onSnapshot(function(doc){
+                if(!doc.exists) db.collection('users').doc(user.uid).set({email:user.email, credits:10});
+                else document.getElementById('creditDisplay').innerText = (doc.data().credits||0) + " Cr";
+            });
+            setTimeout(draw, 500);
+        } else {
+            document.getElementById('login-view').style.display = 'flex';
+            document.getElementById('app-view').style.display = 'none';
+        }
+    });
+}
+
+// --- APP LOGIC BRIDGE ---
+function promptVal(id, txt) { var v=prompt(txt, document.getElementById(id).value); if(v!==null){document.getElementById(id).value=v; draw();} }
+function cycleZoom() { var el=document.getElementById('zoom'); var v=parseFloat(el.value); v=(v>=3)?0.5:v+0.5; el.value=v; document.getElementById('lbl-zoom').innerText=v+"x"; draw(); }
+function cycleFit() { var el=document.getElementById('fitMode'); var o=['cover','stretch','contain']; el.value=o[(o.indexOf(el.value)+1)%3]; document.getElementById('lbl-fit').innerText=el.value; draw(); }
+function toggleMirror() { var el=document.getElementById('mirror'); el.checked=!el.checked; draw(); }
+function cycleShape() { var el=document.getElementById('shp'); var o=['rect','circle','arch-top','arch-bottom']; el.value=o[(o.indexOf(el.value)+1)%4]; document.getElementById('lbl-shape').innerText=el.value.replace('-',' '); draw(); }
+function updateColor(v) { document.getElementById('clr').value=v; draw(); }
+
+function handleUploadClick() {
+    document.getElementById('fInput').click();
+    document.getElementById('btn-lock').style.display = 'flex';
+    document.getElementById('pro-grp').style.display = 'none';
+    document.getElementById('sW').value=''; document.getElementById('sH').value='';
+    hiddenBlocks = {}; 
+}
+
+function unlockPro() {
+    if(!currentUser) return;
+    var btn = document.getElementById('btn-lock');
+    btn.querySelector('.tool-label').innerText = "...";
+    var ref = db.collection('users').doc(currentUser.uid);
+    db.runTransaction(function(t){
+        return t.get(ref).then(function(doc){
+            var c = doc.data().credits || 0;
+            if(c < 2) throw "Need 2 Credits";
+            t.update(ref, { credits: c - 2 });
+        });
+    }).then(function(){
+        btn.style.display = 'none';
+        document.getElementById('pro-grp').style.display = 'flex';
+        document.getElementById('gap').value='2'; draw();
+    }).catch(function(e){ alert(e); btn.querySelector('.tool-label').innerText = "Unlock"; });
+}
+
+// --- CANVAS LOGIC ---
+var cvs = document.getElementById('cvs');
+function getV(id){ return parseFloat(document.getElementById(id).value)||0; }
+
+document.getElementById('fInput').addEventListener('change', function(e) {
+    if(e.target.files[0]) {
+        var file = e.target.files[0];
+        uploadedFileName = file.name.split('.')[0];
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+            tempSrc = evt.target.result;
+            document.getElementById('modal-img').src = tempSrc;
+            document.getElementById('modal').style.display = 'flex';
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    }
+});
+
+function closeModal(pay) {
+    document.getElementById('modal').style.display = 'none';
+    if(pay && tempSrc) {
+        var ref = db.collection('users').doc(currentUser.uid);
+        db.runTransaction(function(t){
+            return t.get(ref).then(function(doc){
+                var c = doc.data().credits || 0;
+                if(c < 4) throw "Low Balance";
+                t.update(ref, { credits: c - 4 });
+            });
+        }).then(function(){
+            var img = new Image();
+            img.onload = function(){
+                currentImg = img; imgState={x:0, y:0, zoom:1.0};
+                document.getElementById('zoom').value=1.0; 
+                try {
+                    var tempCvs = document.createElement('canvas');
+                    tempCvs.width = 1; tempCvs.height = 1;
+                    var tempCtx = tempCvs.getContext('2d');
+                    tempCtx.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+                    var p = tempCtx.getImageData(0, 0, 1, 1).data;
+                    if(p[3] > 0) {
+                        var hex = "#" + ("000000" + ((p[0] << 16) | (p[1] << 8) | p[2]).toString(16)).slice(-6);
+                        document.getElementById('clr').value = hex;
+                    }
+                } catch(err) { console.log("Auto-color skipped"); }
+                draw();
+            };
+            img.src = tempSrc;
+        }).catch(function(e){ alert(e); });
+    }
+}
+
+// Dragging
+function startDrag(e){ imgState.isDragging=true; imgState.lastX=e.touches?e.touches[0].clientX:e.clientX; imgState.lastY=e.touches?e.touches[0].clientY:e.clientY; }
+function doDrag(e){
+    if(!imgState.isDragging) return;
+    e.preventDefault();
+    var cx=e.touches?e.touches[0].clientX:e.clientX; var cy=e.touches?e.touches[0].clientY:e.clientY;
+    imgState.x += (cx - imgState.lastX); imgState.y += (cy - imgState.lastY);
+    imgState.lastX = cx; imgState.lastY = cy;
+    draw();
+}
+function stopDrag(){ imgState.isDragging=false; }
+cvs.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', stopDrag);
+cvs.addEventListener('touchstart', startDrag); window.addEventListener('touchmove', doDrag); window.addEventListener('touchend', stopDrag);
+
+function draw() {
+    var ctx = cvs.getContext('2d');
+    var tW = getV('tW') || 100;
+    var tH = getV('tH') || 90;
+    var gap = getV('gap') || 0;
+    var aDepth = getV('archDepth') || 10;
+    
+    var zoomLevel = parseFloat(document.getElementById('zoom').value) || 1.0;
+    var currentShp = document.getElementById('shp').value;
+    var depthBtn = document.getElementById('btn-arch-depth');
+    if(depthBtn) depthBtn.style.display = currentShp.includes('arch') ? 'flex' : 'none';
+
+    var sW = document.getElementById('sW').value;
+    var sH = document.getElementById('sH').value;
+    var cols = sW ? sW.split(',').map(Number) : [tW];
+    var rows = sH ? sH.split(',').map(Number) : [tH];
+    
+    var vW = cols.reduce((a,b)=>a+b,0) + (cols.length-1)*gap;
+    var vH = rows.reduce((a,b)=>a+b,0) + (rows.length-1)*gap;
+    
+    var HD = 1500; cvs.width = HD; cvs.height = HD;
+    var pad = 100, safeW = HD - 2*pad, safeH = HD - 2*pad;
+    var PPI = Math.min(safeW/vW, safeH/vH);
+    
+    var startX = pad + (safeW - vW*PPI)/2;
+    var startY = pad + (safeH - vH*PPI)/2;
+    
+    var imgParams = null;
+    if(currentImg) {
+        var primaryW_px = tW * PPI;
+        var primaryH_px = tH * PPI;
+        var wallCenterX = startX + (vW * PPI) / 2;
+        var wallCenterY = startY + (vH * PPI) / 2;
+
+        var fit = document.getElementById('fitMode').value;
+        var drawW, drawH;
+        var imgRatio = currentImg.width / currentImg.height;
+        var targetRatio = primaryW_px / primaryH_px;
+
+        if (fit === 'stretch') { drawW = primaryW_px; drawH = primaryH_px; } 
+        else if (fit === 'contain') {
+            if (imgRatio > targetRatio) { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
+            else { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
+        } else { 
+            if (imgRatio > targetRatio) { drawH = primaryH_px; drawW = primaryH_px * imgRatio; }
+            else { drawW = primaryW_px; drawH = primaryW_px / imgRatio; }
+        }
+        imgParams = { gx: wallCenterX, gy: wallCenterY, w: drawW, h: drawH };
+    }
+
+    ctx.fillStyle = "white"; ctx.fillRect(0,0,HD,HD);
+    
+    var cY = startY;
+    rows.forEach(function(h, rI){
+        var cX = startX;
+        var rShp = currentShp;
+        if(currentShp === 'arch-top' && rI !== 0) rShp = 'rect';
+        if(currentShp === 'arch-bottom' && rI !== rows.length - 1) rShp = 'rect';
+
+        cols.forEach(function(w, cI){
+            var dW = w*PPI, dH = h*PPI;
+            
+            ctx.save();
+            ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.clip();
+            ctx.fillStyle = document.getElementById('clr').value; ctx.fill();
+            
+            if(imgParams && !hiddenBlocks[rI + '-' + cI]) {
+                ctx.save();
+                var accumulatedGapX = cI * gap * PPI;
+                var accumulatedGapY = rI * gap * PPI;
+                var totalGapsX = (cols.length - 1) * gap * PPI;
+                var totalGapsY = (rows.length - 1) * gap * PPI;
+                var shiftX = accumulatedGapX - (totalGapsX / 2);
+                var shiftY = accumulatedGapY - (totalGapsY / 2);
+
+                ctx.translate(imgParams.gx + imgState.x + shiftX, imgParams.gy + imgState.y + shiftY);
+                ctx.scale(zoomLevel, zoomLevel);
+                if(document.getElementById('mirror').checked) ctx.scale(-1, 1);
+                
+                ctx.drawImage(currentImg, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
+                
+                if (window.isFoilSplit && window.foilMaskImage) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(0, -imgParams.h/2, imgParams.w/2, imgParams.h);
+                    ctx.clip();
+                    ctx.drawImage(window.foilMaskImage, -imgParams.w/2, -imgParams.h/2, imgParams.w, imgParams.h);
+                    ctx.restore();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, -imgParams.h/2);
+                    ctx.lineTo(0, imgParams.h/2);
+                    ctx.strokeStyle = "#bb86fc";
+                    ctx.lineWidth = 4 / zoomLevel; 
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+            
+            ctx.restore(); 
+            
+            ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
+            ctx.beginPath(); trace(ctx, cX, cY, dW, dH, rShp, PPI, aDepth); ctx.stroke();
+            
+            var fontSize = 60;
+            ctx.fillStyle="#333"; ctx.font="bold "+fontSize+"px sans-serif"; ctx.textAlign="center";
+            ctx.fillText(w+'"', cX+dW/2, cY+dH+70);
+            
+            if (cI === 0) {
+                ctx.save(); ctx.translate(cX-30, cY+dH/2); ctx.rotate(-Math.PI/2); ctx.fillText(h+'"', 0,0); ctx.restore();
+            }
+
+            cX += dW + gap*PPI;
+        });
+        cY += h*PPI + gap*PPI;
+    });
+}
+
+function trace(ctx,x,y,w,h,t,p,depthIn){
+    var d = Math.min(h, (depthIn||10)*p); 
+    if(t==='rect') ctx.rect(x,y,w,h);
+    else if(t==='circle') ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,2*Math.PI);
+    else if(t==='arch-top'){
+        ctx.moveTo(x,y+h); ctx.lineTo(x,y+d); ctx.bezierCurveTo(x,y, x+w,y, x+w,y+d); ctx.lineTo(x+w,y+h);
+    }
+    else if(t==='arch-bottom'){
+        ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h-d); ctx.bezierCurveTo(x+w,y+h, x,y+h, x,y+h-d); ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+}
+
+function downloadCanvas(){var a=document.createElement('a'); a.download='pnp-'+(uploadedFileName||'design')+'.png'; a.href=cvs.toDataURL(); a.click();}
+
+cvs.addEventListener('dblclick', function(e) {
+    var rect = cvs.getBoundingClientRect();
+    var scaleX = cvs.width / rect.width;
+    var scaleY = cvs.height / rect.height;
+    var x = (e.clientX - rect.left) * scaleX;
+    var y = (e.clientY - rect.top) * scaleY;
+
+    var tW=getV('tW')||100, tH=getV('tH')||90, gap=getV('gap')||0;
+    var sW=document.getElementById('sW').value, sH=document.getElementById('sH').value;
+    var cols=sW?sW.split(',').map(Number):[tW], rows=sH?sH.split(',').map(Number):[tH];
+    
+    var HD=1500;
+    var vW=cols.reduce((a,b)=>a+b,0)+(cols.length-1)*gap;
+    var vH=rows.reduce((a,b)=>a+b,0)+(rows.length-1)*gap;
+    var pad=100, safeW=HD-2*pad, safeH=HD-2*pad;
+    var PPI=Math.min(safeW/vW, safeH/vH);
+    var startX=pad+(safeW-vW*PPI)/2, startY=pad+(safeH-vH*PPI)/2;
+
+    var cY = startY;
+    for(var rI=0; rI<rows.length; rI++) {
+        var h = rows[rI];
+        var cX = startX;
+        for(var cI=0; cI<cols.length; cI++) {
+            var w = cols[cI];
+            var dW = w*PPI, dH = h*PPI;
+            if(x >= cX && x <= cX+dW && y >= cY && y <= cY+dH) {
+                var key = rI + '-' + cI;
+                if(hiddenBlocks[key]) delete hiddenBlocks[key];
+                else hiddenBlocks[key] = true;
+                draw();
+                return;
+            }
+            cX += dW + gap*PPI;
+        }
+        cY += h*PPI + gap*PPI;
+    }
+});
+
 function toggleFoilMode() {
-    if (!currentImg) {
-        alert("Please upload an image first!");
-        return;
-    }
+    if (!currentImg) { alert("Please upload an image first!"); return; }
+    if (window.isFoilSplit) { window.isFoilSplit = false; if(typeof draw === 'function') draw(); return; }
 
-    // Toggle off if it's already on
-    if (window.isFoilSplit) {
-        window.isFoilSplit = false;
-        if(typeof draw === 'function') draw();
-        return;
-    }
-
-    // 1. Generate the foil mask silently in the background
     var foilCvs = document.createElement('canvas');
-    foilCvs.width = currentImg.width;
-    foilCvs.height = currentImg.height;
-    var fCtx = foilCvs.getContext('2d');
-    fCtx.drawImage(currentImg, 0, 0);
+    foilCvs.width = currentImg.width; foilCvs.height = currentImg.height;
+    var fCtx = foilCvs.getContext('2d'); fCtx.drawImage(currentImg, 0, 0);
 
     var imgData = fCtx.getImageData(0, 0, foilCvs.width, foilCvs.height);
-    var px = imgData.data;
-    var w = foilCvs.width, h = foilCvs.height;
+    var px = imgData.data; var w = foilCvs.width, h = foilCvs.height;
 
     var gray = new Uint8ClampedArray(w * h);
     for (var i = 0; i < px.length; i += 4) {
         gray[i / 4] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
     }
 
-    var kX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-    var kY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+    var kX = [-1, 0, 1, -2, 0, 2, -1, 0, 1], kY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
 
     for (var y = 1; y < h - 1; y++) {
         for (var x = 1; x < w - 1; x++) {
@@ -700,18 +536,14 @@ function toggleFoilMode() {
     }
     fCtx.putImageData(imgData, 0, 0);
 
-    // 2. Save the mask and redraw the canvas with the split
     var img = new Image();
     img.onload = function() {
-        window.foilMaskImage = img;
-        window.isFoilSplit = true;
+        window.foilMaskImage = img; window.isFoilSplit = true;
         if(typeof draw === 'function') draw(); 
     };
     img.src = foilCvs.toDataURL("image/png");
 }
+</script>
 
-                        
-
-    </script>
 </body>
 </html>
