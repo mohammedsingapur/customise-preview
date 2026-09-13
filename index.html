@@ -234,36 +234,22 @@ function unlockPro() {
 var cvs = document.getElementById('cvs');
 function getV(id){ return parseFloat(document.getElementById(id).value)||0; }
 
+
+// --- FREE INSTANT IMAGE UPLOAD ---
 document.getElementById('fInput').addEventListener('change', function(e) {
     if(e.target.files[0]) {
         var file = e.target.files[0];
         uploadedFileName = file.name.split('.')[0];
         var reader = new FileReader();
+        
         reader.onload = function(evt) {
-            tempSrc = evt.target.result;
-            document.getElementById('modal-img').src = tempSrc;
-            document.getElementById('modal').style.display = 'flex';
-        };
-        reader.readAsDataURL(file);
-        e.target.value = '';
-    }
-});
-
-function closeModal(pay) {
-    document.getElementById('modal').style.display = 'none';
-    if(pay && tempSrc) {
-        var ref = db.collection('users').doc(currentUser.uid);
-        db.runTransaction(function(t){
-            return t.get(ref).then(function(doc){
-                var c = doc.data().credits || 0;
-                if(c < 4) throw "Low Balance";
-                t.update(ref, { credits: c - 4 });
-            });
-        }).then(function(){
             var img = new Image();
-            img.onload = function(){
-                currentImg = img; imgState={x:0, y:0, zoom:1.0};
-                document.getElementById('zoom').value=1.0; 
+            img.onload = function() {
+                currentImg = img; 
+                imgState = {x:0, y:0, zoom:1.0};
+                document.getElementById('zoom').value = 1.0; 
+                
+                // Auto-detect background color
                 try {
                     var tempCvs = document.createElement('canvas');
                     tempCvs.width = 1; tempCvs.height = 1;
@@ -275,11 +261,20 @@ function closeModal(pay) {
                         document.getElementById('clr').value = hex;
                     }
                 } catch(err) { console.log("Auto-color skipped"); }
+                
+                // Draw the preview immediately for free!
                 draw();
             };
-            img.src = tempSrc;
-        }).catch(function(e){ alert(e); });
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+        e.target.value = ''; // Reset input
     }
+});
+
+// Disable the old modal function so it doesn't break anything
+function closeModal(pay) {
+    document.getElementById('modal').style.display = 'none';
 }
 
 // Dragging
